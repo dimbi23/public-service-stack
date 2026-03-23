@@ -1,0 +1,27 @@
+{
+  "name": "@org/portal",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "next": "~16.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "nx": {
+    "tags": [
+      "type:app",
+      "scope:portal"
+    ],
+    "targets": {
+      "lint": {
+        "executor": "@nx/eslint:lint",
+        "options": {
+          "lintFilePatterns": [
+            "apps/portal/**/*.ts",
+            "apps/portal/**/*.tsx"
+          ]
+        }
+      }
+    }
+  }
+}

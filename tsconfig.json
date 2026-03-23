@@ -2,5 +2,39 @@
   "extends": "./tsconfig.base.json",
   "compileOnSave": false,
   "files": [],
-  "references": []
+  "references": [
+    {
+      "path": "./apps/procedures-api-e2e"
+    },
+    {
+      "path": "./apps/procedures-api"
+    },
+    {
+      "path": "./apps/case-api-e2e"
+    },
+    {
+      "path": "./apps/case-api"
+    },
+    {
+      "path": "./apps/wbb-service-e2e"
+    },
+    {
+      "path": "./apps/wbb-service"
+    },
+    {
+      "path": "./apps/portal-e2e"
+    },
+    {
+      "path": "./apps/portal"
+    },
+    {
+      "path": "./libs/schemas"
+    },
+    {
+      "path": "./libs/dto"
+    },
+    {
+      "path": "./libs/events"
+    }
+  ]
 }
