@@ -20,6 +20,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@org/normalizer": "workspace:*",
     "@elysiajs/eden": "^1.4.5",
     "@payloadcms/db-mongodb": "3.80.0",
     "@payloadcms/db-postgres": "3.80.0",
