@@ -390,6 +390,9 @@ importers:
 
   libs/events:
     dependencies:
+      '@org/dto':
+        specifier: workspace:*
+        version: link:../dto
       tslib:
         specifier: ^2.3.0
         version: 2.8.1

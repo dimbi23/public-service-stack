@@ -8,6 +8,7 @@ import sharp from "sharp";
 import { Applications } from "@/collections/Applications";
 import { Categories } from "@/collections/Categories";
 import { Departments } from "@/collections/Departments";
+import { ExecutionMappings } from "@/collections/ExecutionMappings";
 import { Services } from "@/collections/Services";
 import { Tenants } from "@/collections/Tenants";
 import { applicationBySubmissionEndpoint } from "@/endpoints/application-by-submission";
@@ -39,6 +40,7 @@ export default buildConfig({
 		Tenants,
 		Departments,
 		Services,
+		ExecutionMappings,
 		Categories,
 		Applications,
 		ServiceViews,

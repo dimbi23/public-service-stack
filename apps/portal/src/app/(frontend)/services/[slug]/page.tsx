@@ -26,12 +26,10 @@ export default async function ServicePage({ params }: ServicePageProps) {
 	const result = await payload.find({
 		collection: "services",
 		where: {
-			slug: {
-				equals: slug,
-			},
+			slug: { equals: slug },
 		},
 		limit: 1,
-		depth: 2, // Populate category, department, and form relationships
+		depth: 2,
 	});
 
 	const service = result.docs[0];
@@ -40,25 +38,64 @@ export default async function ServicePage({ params }: ServicePageProps) {
 		notFound();
 	}
 
-	// Transform Payload data to match component expectations if necessary
-	// or update components to match Payload types.
-	// For now, let's map the data to match the existing component props as much as possible
-	// to minimize component refactoring, or better yet, pass the whole object if we update components.
+	// ── Fee summary ─────────────────────────────────────────────────────────
+	let feeDisplay = "Gratuit";
+	if (service.fee) {
+		const { model, summary, currency } = service.fee;
+		if (model === "fixed" && summary?.defaultAmount != null) {
+			feeDisplay = `${summary.defaultAmount.toLocaleString()} ${currency ?? "MGA"}`;
+		} else if (model === "range" && summary) {
+			const min = summary.minAmount;
+			const max = summary.maxAmount;
+			if (min != null && max != null) {
+				feeDisplay = `${min.toLocaleString()} – ${max.toLocaleString()} ${currency ?? "MGA"}`;
+			} else if (min != null || max != null) {
+				feeDisplay = `${(min ?? max)!.toLocaleString()} ${currency ?? "MGA"}`;
+			}
+		} else if (model !== "unknown") {
+			feeDisplay = model ?? "Voir détails";
+		}
+	}
 
-	// The Sheet component expects a specific structure. Let's map it.
-	// Note: The Services collection schema might not have all fields used in the mock data.
-	// We should probably update the Sheet component to handle missing data gracefully or update the schema.
-	// For this task, I will map what we have and pass defaults for missing ones,
-	// assuming the user will update the schema later or we update components.
+	// ── Access channel ──────────────────────────────────────────────────────
+	const channel = service.access?.channel ?? "unknown";
+	const isOnline = channel === "online" || channel === "hybrid";
 
-	// Actually, looking at the schema, we have:
-	// name, category, description, department, type, audience, access, status, eligibility, processingTime,
-	// documentsRequired, costs, supportContact, steps.
+	// ── Processing time ─────────────────────────────────────────────────────
+	const processingTime = service.processingTime;
+	let durationDisplay = "N/A";
+	if (processingTime) {
+		if (processingTime.slaDays != null) {
+			durationDisplay = `${processingTime.slaDays} j. ouvrables`;
+		} else if (processingTime.rawText) {
+			durationDisplay = processingTime.rawText;
+		}
+	}
 
-	// Sheet expects:
-	// title (name), description, category (relation), duration (processingTime), fee (costs?),
-	// popularity (missing), rating (missing), isOnline (access?), overview (description?),
-	// requirements (documentsRequired), process (steps), faqs (missing), fees (costs), offices (missing).
+	// ── Documents required ──────────────────────────────────────────────────
+	const requirements: string[] =
+		service.documentsRequired?.map((d) => d.label ?? d.documentTypeCode ?? "") ?? [];
+
+	// ── Workflow steps ──────────────────────────────────────────────────────
+	const process: { step: number; title: string; description: string; duration: string }[] =
+		service.workflow?.steps?.map((s, i) => ({
+			step: s.order ?? i + 1,
+			title: s.label,
+			description: s.stepType ?? "",
+			duration: s.slaDays != null ? `${s.slaDays} j.` : "N/A",
+		})) ?? [];
+
+	// ── Fee rules ───────────────────────────────────────────────────────────
+	const fees: { type: string; amount: string }[] =
+		service.fee?.rules?.map((r, i) => ({
+			type: r.ruleId ?? `Règle ${i + 1}`,
+			amount:
+				r.amount != null
+					? `${r.amount.toLocaleString()} ${service.fee?.currency ?? "MGA"}`
+					: r.minAmount != null && r.maxAmount != null
+						? `${r.minAmount.toLocaleString()} – ${r.maxAmount.toLocaleString()} ${service.fee?.currency ?? "MGA"}`
+						: "Voir détails",
+		})) ?? [];
 
 	const mappedService = {
 		id: String(service.id),
@@ -68,30 +105,15 @@ export default async function ServicePage({ params }: ServicePageProps) {
 		category:
 			typeof service.category === "object"
 				? service.category?.name
-				: "General",
-		duration: service.processingTime || "N/A",
-		fee:
-			service.costs && service.costs.length > 0
-				? `${service.costs[0].cost} MGA`
-				: "Free",
-		isOnline: service.access === "online" || service.access === "hybrid",
-		hasForm: !!service.form, // Whether the service has a form (online application)
-		overview:
-			lexicalToPlainText(service.description) || "Service details...",
-		requirements:
-			service.documentsRequired?.map((d) => d.documentName || "") || [],
-		process:
-			service.steps?.map((s, i) => ({
-				step: i + 1,
-				title: `Step ${i + 1}`,
-				description: s.stepDescription || "",
-				duration: "N/A",
-			})) || [],
-		fees:
-			service.costs?.map((c, i) => ({
-				type: `Fee ${i + 1}`,
-				amount: `${c.cost} MGA`,
-			})) || [],
+				: "Général",
+		duration: durationDisplay,
+		fee: feeDisplay,
+		isOnline,
+		hasForm: !!service.form,
+		overview: lexicalToPlainText(service.description) || "Détails du service...",
+		requirements,
+		process,
+		fees,
 	};
 
 	return (
@@ -101,7 +123,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
 					<Breadcrumb>
 						<BreadcrumbList>
 							<BreadcrumbItem>
-								<BreadcrumbLink href="/">Home</BreadcrumbLink>
+								<BreadcrumbLink href="/">Accueil</BreadcrumbLink>
 							</BreadcrumbItem>
 							<BreadcrumbSeparator />
 							<BreadcrumbItem>
@@ -123,7 +145,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
 				category={
 					typeof service.category === "object"
 						? service.category?.name
-						: "General"
+						: "Général"
 				}
 				currentServiceId={String(service.id)}
 			/>
