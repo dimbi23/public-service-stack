@@ -1,4 +1,4 @@
-.PHONY: up down reset logs ps shell-postgres shell-redis tools
+.PHONY: up down reset logs ps shell-postgres shell-redis tools bootstrap
 
 # Copy .env.example to .env if it doesn't exist
 .env:
@@ -49,3 +49,13 @@ shell-redis:
 ## Open n8n shell
 shell-n8n:
 	docker compose exec n8n sh
+
+## Import starter workflows into n8n and register them with wbb-service
+## Requires N8N_API_KEY env var
+bootstrap:
+	@echo "Running n8n bootstrap..."
+	N8N_URL=$${N8N_URL:-http://localhost:5678} \
+	WBB_URL=$${WBB_URL:-http://localhost:3003} \
+	N8N_API_KEY=$${N8N_API_KEY} \
+	WORKFLOWS_DIR=$(CURDIR)/n8n/workflows \
+	bash $(CURDIR)/n8n/bootstrap.sh

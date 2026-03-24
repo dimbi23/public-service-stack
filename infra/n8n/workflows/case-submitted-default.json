@@ -1,0 +1,86 @@
+{
+  "name": "Case Submitted — Default Handler",
+  "active": false,
+  "nodes": [
+    {
+      "id": "node-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "parameters": {
+        "path": "case-submitted",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"received\": true, \"caseId\": \"{{ $json.caseId }}\" }"
+      }
+    },
+    {
+      "id": "node-callback",
+      "name": "WBB Callback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook').item.json.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"caseId\": \"{{ $('Webhook').item.json.caseId }}\",\n  \"stepId\": \"initial-review\",\n  \"outcome\": \"completed\",\n  \"actorId\": \"n8n-default-handler\",\n  \"note\": \"Processed by default n8n workflow\"\n}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "WBB Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "taxononie" },
+    { "name": "case-submitted" }
+  ]
+}
