@@ -2,6 +2,9 @@ import type { CollectionAfterChangeHook } from "payload";
 import { v4 as uuidv4 } from "uuid";
 import type { FormSubmission } from "@/payload-types";
 
+const CASE_API_URL = process.env.CASE_API_URL ?? "http://localhost:3002";
+const WBB_SERVICE_URL = process.env.WBB_SERVICE_URL ?? "http://localhost:3003";
+
 export const createApplication: CollectionAfterChangeHook = async ({
 	doc,
 	req,
@@ -15,7 +18,7 @@ export const createApplication: CollectionAfterChangeHook = async ({
 	const submission = doc as FormSubmission;
 	const submissionId = submission.id;
 
-	// Generate tracking ID
+	// Generate tracking ID (human-readable, shown to citizen)
 	const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
 	const randomPart = uuidv4().split("-")[0].toUpperCase();
 	const trackingId = `APP-${date}-${randomPart}`;
@@ -30,8 +33,9 @@ export const createApplication: CollectionAfterChangeHook = async ({
 		applicantEmail = emailField?.value || undefined;
 	}
 
-	// Find associated service via form
-	let serviceId: number | undefined;
+	// Find associated service via form — need both Payload id and string serviceId
+	let payloadServiceId: number | undefined;
+	let serviceIdStr: string | undefined;
 	const formId =
 		typeof submission.form === "object"
 			? submission.form.id
@@ -44,53 +48,110 @@ export const createApplication: CollectionAfterChangeHook = async ({
 				where: { form: { equals: formId } },
 				limit: 1,
 			});
-			serviceId = services.docs[0]?.id;
+			const svc = services.docs[0] as any;
+			if (svc) {
+				payloadServiceId = svc.id;
+				serviceIdStr = svc.serviceId; // canonical string serviceId e.g. "MAM-001"
+			}
 		} catch (error) {
 			console.error("Error finding service:", error);
 		}
 	}
 
-	// Create application asynchronously
-	// Use a small delay to ensure the submission transaction is fully committed
-	// This prevents foreign key constraint violations
+	// Run asynchronously so Payload response is not blocked
 	(async () => {
 		await new Promise((resolve) => setTimeout(resolve, 100));
 
 		try {
-			// Verify submission exists before creating application
-			let existingSubmission = await req.payload.findByID({
-				collection: "form-submissions",
-				id: submissionId,
-			});
+			// Verify submission exists before proceeding
+			const existingSubmission = await req.payload
+				.findByID({ collection: "form-submissions", id: submissionId })
+				.catch(() => null);
 
 			if (!existingSubmission) {
-				console.error(
-					`Submission ${submissionId} not found, retrying...`
-				);
-				// Retry once after a longer delay
 				await new Promise((resolve) => setTimeout(resolve, 200));
-
-				// Verify again after retry
-				existingSubmission = await req.payload.findByID({
-					collection: "form-submissions",
-					id: submissionId,
-				});
-
-				if (!existingSubmission) {
+				const retry = await req.payload
+					.findByID({ collection: "form-submissions", id: submissionId })
+					.catch(() => null);
+				if (!retry) {
 					console.error(
-						`Submission ${submissionId} still not found after retry, aborting application creation`
+						`Submission ${submissionId} not found after retry, aborting`
 					);
 					return;
 				}
 			}
 
+			// ── 1. Create case in case-api ─────────────────────────────────────
+			let caseId: string | undefined;
+			if (serviceIdStr) {
+				try {
+					const caseRes = await fetch(`${CASE_API_URL}/v1/cases`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							serviceId: serviceIdStr,
+							applicantId: applicantEmail ?? `submission:${submissionId}`,
+							submissionId: String(submissionId),
+						}),
+					});
+					if (caseRes.ok) {
+						const caseData = await caseRes.json() as { id: string };
+						caseId = caseData.id;
+						console.log(
+							`Case created: ${caseId} for submission ${submissionId}`
+						);
+					} else {
+						console.error(
+							`case-api responded ${caseRes.status} for submission ${submissionId}`
+						);
+					}
+				} catch (err) {
+					console.error("Error calling case-api:", err);
+				}
+			}
+
+			// ── 2. Trigger workflow in wbb-service ────────────────────────────
+			if (caseId && serviceIdStr) {
+				try {
+					const wbbRes = await fetch(
+						`${WBB_SERVICE_URL}/v1/workflow/trigger`,
+						{
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({
+								caseId,
+								serviceId: serviceIdStr,
+								applicantId: applicantEmail ?? `submission:${submissionId}`,
+								submissionId: String(submissionId),
+							}),
+						}
+					);
+					if (wbbRes.ok) {
+						const wbbData = await wbbRes.json() as { webhookPath: string };
+						console.log(
+							`Workflow triggered via webhook "${wbbData.webhookPath}" for case ${caseId}`
+						);
+					} else {
+						// Non-fatal: workflow trigger may fail if no registration exists yet
+						const body = await wbbRes.text();
+						console.warn(
+							`wbb-service responded ${wbbRes.status} for case ${caseId}: ${body}`
+						);
+					}
+				} catch (err) {
+					console.warn("Error calling wbb-service (non-fatal):", err);
+				}
+			}
+
+			// ── 3. Create Application doc in Payload ──────────────────────────
 			await req.payload.create({
 				collection: "applications",
 				data: {
 					trackingId,
+					caseId,
 					status: "pending",
 					submission: submissionId,
-					service: serviceId,
+					service: payloadServiceId,
 					applicantEmail,
 					timeline: [
 						{
@@ -103,7 +164,7 @@ export const createApplication: CollectionAfterChangeHook = async ({
 			});
 
 			console.log(
-				`Application created: ${trackingId} for submission ${submissionId}`
+				`Application created: ${trackingId} (caseId: ${caseId ?? "none"}) for submission ${submissionId}`
 			);
 		} catch (error) {
 			console.error(

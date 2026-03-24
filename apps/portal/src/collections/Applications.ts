@@ -25,6 +25,15 @@ export const Applications: CollectionConfig = {
 			},
 		},
 		{
+			name: "caseId",
+			type: "text",
+			index: true,
+			admin: {
+				readOnly: true,
+				description: "Case ID from case-api (UUID)",
+			},
+		},
+		{
 			name: "status",
 			type: "select",
 			defaultValue: "pending",

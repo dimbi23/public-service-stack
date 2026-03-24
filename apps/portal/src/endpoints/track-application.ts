@@ -1,6 +1,8 @@
 import type { Endpoint } from "payload";
 import type { Application } from "@/payload-types";
 
+const CASE_API_URL = process.env.CASE_API_URL ?? "http://localhost:3002";
+
 export const trackApplicationEndpoint: Endpoint = {
 	path: "/track-application",
 	method: "get",
@@ -16,18 +18,12 @@ export const trackApplicationEndpoint: Endpoint = {
 		}
 
 		try {
-			// Use overrideAccess to allow public tracking without authentication
-			// Populate service relationship to get service name
 			const result = await req.payload.find({
 				collection: "applications",
-				where: {
-					trackingId: {
-						equals: trackingId,
-					},
-				},
+				where: { trackingId: { equals: trackingId } },
 				limit: 1,
-				depth: 1, // Populate relationships (service)
-				overrideAccess: true, // Bypass access control for public tracking
+				depth: 1,
+				overrideAccess: true,
 			});
 
 			if (result.totalDocs === 0) {
@@ -37,9 +33,9 @@ export const trackApplicationEndpoint: Endpoint = {
 				);
 			}
 
-			const application = result.docs[0] as Application;
+			const application = result.docs[0] as Application & { caseId?: string };
 
-			// Optional: Verify email if provided for extra security
+			// Optional email verification
 			if (email && application.applicantEmail !== email) {
 				return Response.json(
 					{ error: "Email does not match records" },
@@ -47,33 +43,57 @@ export const trackApplicationEndpoint: Endpoint = {
 				);
 			}
 
-			// Extract service name from populated relationship
+			// Resolve service name from populated relationship
 			let serviceName: string | undefined;
 			if (application.service) {
 				if (
 					typeof application.service === "object" &&
 					"name" in application.service
 				) {
-					serviceName = application.service.name;
+					serviceName = (application.service as any).name;
 				} else if (typeof application.service === "number") {
-					// If service is not populated, fetch it
 					try {
-						const service = await req.payload.findByID({
+						const svc = await req.payload.findByID({
 							collection: "services",
 							id: application.service,
 							overrideAccess: true,
 						});
-						serviceName = service?.name;
-					} catch (error) {
-						console.error("Error fetching service:", error);
+						serviceName = (svc as any)?.name;
+					} catch {
+						// best-effort
 					}
+				}
+			}
+
+			// Enrich with live step data from case-api when caseId is available
+			let steps: unknown[] | undefined;
+			let liveStatus: string | undefined;
+			if (application.caseId) {
+				try {
+					const caseRes = await fetch(
+						`${CASE_API_URL}/v1/cases/${application.caseId}`,
+						{ headers: { Accept: "application/json" } }
+					);
+					if (caseRes.ok) {
+						const caseData = await caseRes.json() as {
+							status: string;
+							steps?: unknown[];
+						};
+						liveStatus = caseData.status;
+						steps = caseData.steps;
+					}
+				} catch {
+					// case-api may be temporarily unavailable — fall back to Payload data
 				}
 			}
 
 			return Response.json({
 				trackingId: application.trackingId,
-				status: application.status,
+				caseId: application.caseId,
+				// Prefer live status from case-api; fall back to Payload status
+				status: liveStatus ?? application.status,
 				timeline: application.timeline,
+				steps,
 				serviceName,
 				createdAt: application.createdAt,
 				updatedAt: application.updatedAt,
@@ -81,9 +101,7 @@ export const trackApplicationEndpoint: Endpoint = {
 		} catch (error) {
 			console.error("Error tracking application:", error);
 			const errorMessage =
-				error instanceof Error
-					? error.message
-					: "Internal Server Error";
+				error instanceof Error ? error.message : "Internal Server Error";
 			return Response.json({ error: errorMessage }, { status: 500 });
 		}
 	},
