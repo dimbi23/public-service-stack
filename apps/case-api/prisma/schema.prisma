@@ -1,0 +1,63 @@
+// This is your Prisma schema file for case-api.
+// Run "prisma migrate dev" from apps/case-api to apply migrations.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Case {
+  id            String         @id @default(uuid())
+  serviceId     String
+  applicantId   String
+  submissionId  String?
+  formData      Json?
+  status        String         @default("submitted")
+  currentStepId String?
+  steps         CaseStep[]
+  documents     CaseDocument[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([serviceId])
+  @@index([applicantId])
+  @@index([status])
+
+  @@map("cases")
+}
+
+model CaseStep {
+  id          String   @id @default(uuid())
+  caseId      String
+  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  stepId      String
+  stepType    String   @default("unknown")
+  actor       String
+  outcome     String
+  actorId     String?
+  note        String?
+  completedAt DateTime
+
+  @@index([caseId])
+
+  @@map("case_steps")
+}
+
+model CaseDocument {
+  id               String   @id @default(uuid())
+  caseId           String
+  case             Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  documentTypeCode String
+  label            String
+  storageRef       String
+  uploadedAt       DateTime
+
+  @@index([caseId])
+
+  @@map("case_documents")
+}

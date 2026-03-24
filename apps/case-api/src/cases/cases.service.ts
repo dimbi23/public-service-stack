@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
 import type { CaseStatus } from '@org/dto';
 import { EventsService } from '../events/events.service';
@@ -32,28 +31,21 @@ export class CasesService {
 
   // ── Create ──────────────────────────────────────────────────────────────────
 
-  create(dto: CreateCaseDto): Case {
-    const now = new Date().toISOString();
-    const newCase: Case = {
+  async create(dto: CreateCaseDto): Promise<Case> {
+    const newCase = await this.repo.save({
       id: crypto.randomUUID(),
       serviceId: dto.serviceId,
       applicantId: dto.applicantId,
       submissionId: dto.submissionId,
       formData: dto.formData,
       status: 'submitted',
-      documents: [],
-      stepHistory: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    this.repo.save(newCase);
+    });
 
     this.events.emitCaseSubmitted({
       caseId: newCase.id,
       serviceId: newCase.serviceId,
       applicantId: newCase.applicantId,
-      submissionId: newCase.submissionId,
+      submissionId: newCase.submissionId ?? undefined,
     });
 
     return newCase;
@@ -61,7 +53,7 @@ export class CasesService {
 
   // ── Find ────────────────────────────────────────────────────────────────────
 
-  findAll(filter: {
+  async findAll(filter: {
     serviceId?: string;
     applicantId?: string;
     status?: CaseStatus;
@@ -71,16 +63,14 @@ export class CasesService {
     return this.repo.findAll(filter);
   }
 
-  findOne(id: string): Case {
-    const found = this.repo.findById(id);
-    if (!found) throw new NotFoundException(`Case ${id} not found`);
-    return found;
+  async findOne(id: string): Promise<Case> {
+    return this.repo.findByIdOrThrow(id);
   }
 
   // ── Update status ───────────────────────────────────────────────────────────
 
-  updateStatus(id: string, dto: UpdateStatusDto): Case {
-    const found = this.findOne(id);
+  async updateStatus(id: string, dto: UpdateStatusDto): Promise<Case> {
+    const found = await this.repo.findByIdOrThrow(id);
 
     const allowed = TRANSITIONS[found.status];
     if (!allowed.includes(dto.status)) {
@@ -90,7 +80,7 @@ export class CasesService {
       );
     }
 
-    const updated = this.repo.update(id, { status: dto.status });
+    const updated = await this.repo.updateStatus(id, dto.status);
 
     this.events.emitCaseStatusChanged({
       caseId: id,
@@ -101,7 +91,6 @@ export class CasesService {
       note: dto.note,
     });
 
-    // Emit case.closed for terminal states
     if (dto.status === 'approved' || dto.status === 'rejected' || dto.status === 'cancelled') {
       this.events.emitCaseClosed({
         caseId: id,
@@ -111,27 +100,23 @@ export class CasesService {
       });
     }
 
-    return updated!;
+    return updated;
   }
 
   // ── Complete a step ─────────────────────────────────────────────────────────
 
-  completeStep(caseId: string, stepId: string, dto: CompleteStepDto): Case {
-    const found = this.findOne(caseId);
+  async completeStep(caseId: string, stepId: string, dto: CompleteStepDto): Promise<Case> {
+    const found = await this.repo.findByIdOrThrow(caseId);
 
-    const stepEntry = {
+    const completedAt = new Date().toISOString();
+    const updated = await this.repo.addStep(caseId, {
       stepId,
       stepType: 'unknown',
       actor: dto.actorId ?? 'unknown',
       outcome: dto.outcome,
       actorId: dto.actorId,
       note: dto.note,
-      completedAt: new Date().toISOString(),
-    };
-
-    const updated = this.repo.update(caseId, {
-      currentStepId: stepId,
-      stepHistory: [...found.stepHistory, stepEntry],
+      completedAt,
     });
 
     this.events.emitCaseStepCompleted({
@@ -140,28 +125,25 @@ export class CasesService {
       stepId,
       stepType: 'other',
       actor: 'administration',
-      completedAt: stepEntry.completedAt,
+      completedAt,
       outcome: dto.outcome,
       note: dto.note,
     });
 
-    return updated!;
+    return updated;
   }
 
   // ── Add document ────────────────────────────────────────────────────────────
 
-  addDocument(caseId: string, dto: AddDocumentDto): Case {
-    const found = this.findOne(caseId);
+  async addDocument(caseId: string, dto: AddDocumentDto): Promise<Case> {
+    const found = await this.repo.findByIdOrThrow(caseId);
 
-    const doc = {
+    const uploadedAt = new Date().toISOString();
+    const updated = await this.repo.addDocument(caseId, {
       documentTypeCode: dto.documentTypeCode,
       label: dto.label,
       storageRef: dto.storageRef,
-      uploadedAt: new Date().toISOString(),
-    };
-
-    const updated = this.repo.update(caseId, {
-      documents: [...found.documents, doc],
+      uploadedAt,
     });
 
     this.events.emitCaseDocumentUploaded({
@@ -169,10 +151,10 @@ export class CasesService {
       serviceId: found.serviceId,
       documentTypeCode: dto.documentTypeCode,
       label: dto.label,
-      uploadedAt: doc.uploadedAt,
+      uploadedAt,
       storageRef: dto.storageRef,
     });
 
-    return updated!;
+    return updated;
   }
 }

@@ -69,15 +69,17 @@ export class CasesController {
   // GET /v1/cases/:id/documents
   @Get(':id/documents')
   @Version('1')
-  getDocuments(@Param('id') id: string) {
-    return this.cases.findOne(id).documents;
+  async getDocuments(@Param('id') id: string) {
+    const c = await this.cases.findOne(id);
+    return c.documents;
   }
 
   // GET /v1/cases/:id/steps
   @Get(':id/steps')
   @Version('1')
-  getSteps(@Param('id') id: string) {
-    return this.cases.findOne(id).stepHistory;
+  async getSteps(@Param('id') id: string) {
+    const c = await this.cases.findOne(id);
+    return c.stepHistory;
   }
 
   // PATCH /v1/cases/:id/steps/:stepId/complete
