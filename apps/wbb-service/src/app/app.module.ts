@@ -1,10 +1,21 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { ConfigModule } from '@nestjs/config';
+import { HttpModule } from '@nestjs/axios';
+import { HealthModule } from '../health/health.module';
+import { N8nModule } from '../n8n/n8n.module';
+import { ProceduresClientModule } from '../procedures/procedures.module';
+import { CasesClientModule } from '../cases/cases.module';
+import { WorkflowModule } from '../workflow/workflow.module';
 
 @Module({
-  imports: [],
-  controllers: [AppController],
-  providers: [AppService],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    HttpModule,
+    HealthModule,
+    N8nModule,
+    ProceduresClientModule,
+    CasesClientModule,
+    WorkflowModule,
+  ],
 })
 export class AppModule {}
