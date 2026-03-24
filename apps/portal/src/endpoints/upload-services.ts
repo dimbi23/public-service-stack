@@ -20,6 +20,9 @@ export const uploadServicesEndpoint: Endpoint = {
 			}
 
 			// Get file from form data
+			if (!req.formData) {
+				return Response.json({ error: "Multipart not supported" }, { status: 400 });
+			}
 			const formData = await req.formData();
 			const file = formData.get("file") as File | null;
 

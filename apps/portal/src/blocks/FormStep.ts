@@ -1,35 +1,17 @@
-import { fields } from "@payloadcms/plugin-form-builder";
 import type { Block } from "payload";
-
-const textField =
-	typeof fields.text === "function" ? fields.text() : (fields.text as Block);
-const textAreaField =
-	typeof fields.textarea === "function"
-		? fields.textarea()
-		: (fields.textarea as Block);
-const selectField =
-	typeof fields.select === "function"
-		? fields.select()
-		: (fields.select as Block);
-const emailField =
-	typeof fields.email === "function"
-		? fields.email()
-		: (fields.email as Block);
-const numberField =
-	typeof fields.number === "function"
-		? fields.number()
-		: (fields.number as Block);
-const checkboxField =
-	typeof fields.checkbox === "function"
-		? fields.checkbox()
-		: (fields.checkbox as Block);
-const messageField =
-	typeof fields.message === "function"
-		? fields.message()
-		: (fields.message as Block);
+import {
+	specCheckboxField,
+	specEmailField,
+	specMessageField,
+	specNumberField,
+	specSelectField,
+	specTextareaField,
+	specTextField,
+} from "./spec-form-fields";
 
 export const stepField: Block = {
 	slug: "form-step",
+	labels: { singular: "Step", plural: "Steps" },
 	fields: [
 		{
 			name: "title",
@@ -62,18 +44,14 @@ export const stepField: Block = {
 			name: "fields",
 			type: "blocks",
 			blocks: [
-				textField,
-				textAreaField,
-				selectField,
-				emailField,
-				numberField,
-				checkboxField,
-				messageField,
+				specTextField,
+				specTextareaField,
+				specSelectField,
+				specEmailField,
+				specNumberField,
+				specCheckboxField,
+				specMessageField,
 			],
 		},
 	],
-	labels: {
-		singular: "Step",
-		plural: "Steps",
-	},
 };

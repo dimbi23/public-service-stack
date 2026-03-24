@@ -32,7 +32,10 @@ export default async function ServicePage({ params }: ServicePageProps) {
 		depth: 2,
 	});
 
-	const service = result.docs[0];
+	// Cast: payload-types.ts is generated from the DB schema and may lag behind
+	// the live collection definition. New fields (fee, workflow, etc.) are typed
+	// via the cast until the next `pnpm payload generate:types` run.
+	const service = result.docs[0] as any;
 
 	if (!service) {
 		notFound();
@@ -74,11 +77,11 @@ export default async function ServicePage({ params }: ServicePageProps) {
 
 	// ── Documents required ──────────────────────────────────────────────────
 	const requirements: string[] =
-		service.documentsRequired?.map((d) => d.label ?? d.documentTypeCode ?? "") ?? [];
+		service.documentsRequired?.map((d: any) => d.label ?? d.documentTypeCode ?? "") ?? [];
 
 	// ── Workflow steps ──────────────────────────────────────────────────────
 	const process: { step: number; title: string; description: string; duration: string }[] =
-		service.workflow?.steps?.map((s, i) => ({
+		service.workflow?.steps?.map((s: any, i: number) => ({
 			step: s.order ?? i + 1,
 			title: s.label,
 			description: s.stepType ?? "",
@@ -87,7 +90,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
 
 	// ── Fee rules ───────────────────────────────────────────────────────────
 	const fees: { type: string; amount: string }[] =
-		service.fee?.rules?.map((r, i) => ({
+		service.fee?.rules?.map((r: any, i: number) => ({
 			type: r.ruleId ?? `Règle ${i + 1}`,
 			amount:
 				r.amount != null

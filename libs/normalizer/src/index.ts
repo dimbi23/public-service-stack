@@ -1,5 +1,7 @@
 export { normalizeRow, normalizeCatalog } from './normalizer.js';
 export type { CatalogNormalizeResult } from './normalizer.js';
+export { mapFormDefinition } from './form-definition.mapper.js';
+export type { FormDefinitionDraft, FormFieldDraft } from './form-definition.mapper.js';
 export type {
   RawRow,
   NormalizeResult,

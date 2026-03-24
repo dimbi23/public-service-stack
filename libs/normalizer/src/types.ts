@@ -47,6 +47,8 @@ export interface RawRow {
  */
 export interface NormalizeResult {
   service: NormalizedService;
+  /** Draft form definition derived from DOCUMENTS + workflow steps. */
+  formDefinition: import('./form-definition.mapper.js').FormDefinitionDraft;
   errors: string[];
   warnings: string[];
   rowNumber?: number;

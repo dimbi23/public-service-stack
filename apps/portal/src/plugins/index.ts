@@ -5,6 +5,15 @@ import { searchPlugin } from "@payloadcms/plugin-search";
 import type { Plugin } from "payload";
 import { isSuperAdmin } from "@/access/is-super-admin";
 import { stepField } from "@/blocks/FormStep";
+import {
+	specCheckboxField,
+	specEmailField,
+	specMessageField,
+	specNumberField,
+	specSelectField,
+	specTextareaField,
+	specTextField,
+} from "@/blocks/spec-form-fields";
 import { formSchemaEndpoint } from "@/endpoints/form-schema";
 import { beforeFormValidateHook } from "@/hooks/before-form-validate";
 import { createApplication } from "@/hooks/create-application";
@@ -38,15 +47,15 @@ export const plugins: Plugin[] = [
 	}),
 	formBuilderPlugin({
 		fields: {
-			text: true,
-			textarea: true,
-			select: true,
-			email: true,
+			text: specTextField,
+			textarea: specTextareaField,
+			select: specSelectField,
+			email: specEmailField,
 			state: false,
 			country: false,
-			checkbox: true,
-			number: true,
-			message: true,
+			checkbox: specCheckboxField,
+			number: specNumberField,
+			message: specMessageField,
 			date: false,
 			payment: false,
 			step: stepField,

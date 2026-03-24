@@ -1,5 +1,6 @@
 import type { RawRow, NormalizeResult } from './types.js';
 import { mapRow } from './procedure.mapper.js';
+import { mapFormDefinition } from './form-definition.mapper.js';
 
 export interface CatalogNormalizeResult {
   results: NormalizeResult[];
@@ -9,16 +10,18 @@ export interface CatalogNormalizeResult {
 }
 
 /**
- * Normalizes a single raw CSV/Excel row into a spec-conformant service document.
+ * Normalizes a single raw CSV/Excel row.
+ * Returns both the spec-conformant service document and a draft form definition.
  */
 export function normalizeRow(row: RawRow, rowNumber = 1): NormalizeResult {
   const { service, errors, warnings } = mapRow(row, rowNumber);
-  return { service, errors, warnings, rowNumber };
+  const formDefinition = mapFormDefinition(service);
+  return { service, formDefinition, errors, warnings, rowNumber };
 }
 
 /**
- * Normalizes an array of raw rows (e.g. from a CSV parse result).
- * A row is considered "valid" when it has zero errors (warnings are non-fatal).
+ * Normalizes an array of raw rows.
+ * A row is "valid" when it has zero errors (warnings are non-fatal).
  */
 export function normalizeCatalog(rows: RawRow[]): CatalogNormalizeResult {
   const results: NormalizeResult[] = rows.map((row, i) => normalizeRow(row, i + 2));

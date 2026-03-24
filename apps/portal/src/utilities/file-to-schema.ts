@@ -11,6 +11,10 @@ interface JSONSchema7 {
 	required?: string[];
 	enum?: string[];
 	format?: string;
+	// Spec extensions — preserved in the generated schema for downstream consumers
+	"x-fieldId"?: string;
+	"x-mapsToDocumentTypeCode"?: string;
+	"x-mapsToWorkflowStepId"?: string;
 	[key: string]: unknown;
 }
 
@@ -21,43 +25,55 @@ const formatSlug = (val: string): string =>
 		.toLowerCase();
 
 function getFieldSchema(
-	field: NonNullable<Form["fields"]>[number]
+	field: NonNullable<Form["fields"]>[number],
 ): JSONSchema7 | null {
-	// Use name as the primary identifier, fallback to blockName if somehow name is missing (though typed as required)
 	const fieldName = "name" in field ? field.name : field.blockName;
-
-	if (!fieldName) {
-		return null;
-	}
+	if (!fieldName) return null;
 
 	const title = ("label" in field ? field.label : null) || fieldName;
+
+	let base: JSONSchema7 | null = null;
 
 	switch (field.blockType) {
 		case "text":
 		case "textarea":
-			return { type: "string", title };
+			base = { type: "string", title };
+			break;
 		case "email":
-			return {
-				type: "string",
-				format: "email",
-				title,
-			};
+			base = { type: "string", format: "email", title };
+			break;
 		case "number":
-			return { type: "number", title };
+			base = { type: "number", title };
+			break;
 		case "checkbox":
-			return { type: "boolean", title };
+			base = { type: "boolean", title };
+			break;
 		case "select":
-			return {
+			base = {
 				type: "string",
 				enum: (field.options || []).map((opt) => opt.value),
 				title,
 			};
+			break;
 		case "message":
-			// Message fields usually don't have a value to validate, so we skip or treat as string
-			return { type: "string", title };
+			base = { type: "string", title };
+			break;
 		default:
 			return null;
 	}
+
+	// Attach spec mapping metadata as x- extensions (JSON Schema allows x- prefixed keys)
+	if ("fieldId" in field && field.fieldId) {
+		base["x-fieldId"] = field.fieldId as string;
+	}
+	if ("mapsToDocumentTypeCode" in field && field.mapsToDocumentTypeCode) {
+		base["x-mapsToDocumentTypeCode"] = field.mapsToDocumentTypeCode as string;
+	}
+	if ("mapsToWorkflowStepId" in field && field.mapsToWorkflowStepId) {
+		base["x-mapsToWorkflowStepId"] = field.mapsToWorkflowStepId as string;
+	}
+
+	return base;
 }
 
 export function generateSchemaFromForm(formConfig: Form) {
@@ -74,17 +90,13 @@ export function generateSchemaFromForm(formConfig: Form) {
 		required: [],
 	};
 
-	if (!formConfig.fields) {
-		return schema;
-	}
+	if (!formConfig.fields) return schema;
 
 	for (const field of formConfig.fields) {
 		const property = getFieldSchema(field);
 		const fieldName = "name" in field ? field.name : field.blockName;
 
-		if (!(property && fieldName)) {
-			continue;
-		}
+		if (!(property && fieldName)) continue;
 
 		if ("required" in field && field.required) {
 			(schema.required as string[]).push(fieldName);
