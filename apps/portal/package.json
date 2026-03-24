@@ -85,6 +85,36 @@
     "pnpm": "^9 || ^10"
   },
   "nx": {
+    "targets": {
+      "serve": {
+        "continuous": true,
+        "executor": "nx:run-commands",
+        "defaultConfiguration": "development",
+        "options": {
+          "command": "node_modules/.bin/cross-env NODE_OPTIONS=--no-deprecation node_modules/.bin/next dev --turbopack",
+          "cwd": "apps/portal"
+        },
+        "configurations": {
+          "production": {
+            "command": "node_modules/.bin/cross-env NODE_OPTIONS=--no-deprecation node_modules/.bin/next start"
+          }
+        }
+      },
+      "build": {
+        "executor": "nx:run-commands",
+        "outputs": ["{workspaceRoot}/apps/portal/.next"],
+        "options": {
+          "command": "node_modules/.bin/cross-env NODE_OPTIONS=\"--no-deprecation --max-old-space-size=8000\" node_modules/.bin/next build",
+          "cwd": "apps/portal"
+        }
+      },
+      "lint": {
+        "executor": "@nx/eslint:lint",
+        "options": {
+          "lintFilePatterns": ["apps/portal/**/*.{ts,tsx}"]
+        }
+      }
+    },
     "tags": ["type:app", "scope:portal"]
   }
 }
