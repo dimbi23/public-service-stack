@@ -1,4 +1,4 @@
-import type { LexicalContent } from './types.js';
+import type { LexicalContent } from './types';
 
 /** Converts plain text to a minimal Payload Lexical rich-text structure. */
 export function toRichText(text: string): LexicalContent {

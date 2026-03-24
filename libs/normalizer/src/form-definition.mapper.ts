@@ -1,5 +1,5 @@
-import type { NormalizedService } from './types.js';
-import { toSlug } from './helpers.js';
+import type { NormalizedService } from './types';
+import { toSlug } from './helpers';
 
 // ── Output types ──────────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
-import type { RawRow, NormalizedService, DocumentRequired, FeeRule, WorkflowStep } from './types.js';
-import { inferDocumentTypeCode } from './document-type.map.js';
-import { toRichText, toSlug, toServiceId, extractSlaDays, splitPipe, inferFeeModel } from './helpers.js';
+import type { RawRow, NormalizedService, DocumentRequired, FeeRule, WorkflowStep } from './types';
+import { inferDocumentTypeCode } from './document-type.map';
+import { toRichText, toSlug, toServiceId, extractSlaDays, splitPipe, inferFeeModel } from './helpers';
 
 // ── Step type inference ───────────────────────────────────────────────────────
 

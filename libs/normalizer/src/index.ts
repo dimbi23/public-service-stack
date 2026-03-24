@@ -1,7 +1,7 @@
-export { normalizeRow, normalizeCatalog } from './normalizer.js';
-export type { CatalogNormalizeResult } from './normalizer.js';
-export { mapFormDefinition } from './form-definition.mapper.js';
-export type { FormDefinitionDraft, FormFieldDraft } from './form-definition.mapper.js';
+export { normalizeRow, normalizeCatalog } from './normalizer';
+export type { CatalogNormalizeResult } from './normalizer';
+export { mapFormDefinition } from './form-definition.mapper';
+export type { FormDefinitionDraft, FormFieldDraft } from './form-definition.mapper';
 export type {
   RawRow,
   NormalizeResult,
@@ -12,6 +12,6 @@ export type {
   WorkflowGroup,
   WorkflowStep,
   LexicalContent,
-} from './types.js';
-export { inferDocumentTypeCode, DOCUMENT_TYPE_CODES } from './document-type.map.js';
-export type { DocumentTypeCode } from './document-type.map.js';
+} from './types';
+export { inferDocumentTypeCode, DOCUMENT_TYPE_CODES } from './document-type.map';
+export type { DocumentTypeCode } from './document-type.map';

@@ -1,6 +1,6 @@
-import type { RawRow, NormalizeResult } from './types.js';
-import { mapRow } from './procedure.mapper.js';
-import { mapFormDefinition } from './form-definition.mapper.js';
+import type { RawRow, NormalizeResult } from './types';
+import { mapRow } from './procedure.mapper';
+import { mapFormDefinition } from './form-definition.mapper';
 
 export interface CatalogNormalizeResult {
   results: NormalizeResult[];
