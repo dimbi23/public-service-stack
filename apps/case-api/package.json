@@ -64,14 +64,16 @@
         ],
         "options": {
           "buildTarget": "@org/case-api:build",
-          "runBuildTargetDependencies": false
+          "runBuildTargetDependencies": false,
+          "inspect": 9230
         },
         "configurations": {
           "development": {
             "buildTarget": "@org/case-api:build:development"
           },
           "production": {
-            "buildTarget": "@org/case-api:build:production"
+            "buildTarget": "@org/case-api:build:production",
+            "inspect": false
           }
         }
       },
@@ -117,13 +119,16 @@
     "@nestjs/platform-express": "^11.0.0",
     "@org/dto": "workspace:*",
     "@org/events": "workspace:*",
-    "@prisma/client": "^7.0.0",
+    "@prisma/adapter-pg": "^7.5.0",
+    "@prisma/client": "^7.5.0",
+    "@prisma/client-runtime-utils": "^7.5.0",
+    "pg": "^8.20.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.0",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.0.0",
-    "prisma": "^7.0.0"
+    "prisma": "^7.5.0"
   }
 }

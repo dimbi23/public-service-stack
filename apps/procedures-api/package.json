@@ -64,14 +64,16 @@
         ],
         "options": {
           "buildTarget": "@org/procedures-api:build",
-          "runBuildTargetDependencies": false
+          "runBuildTargetDependencies": false,
+          "inspect": 9231
         },
         "configurations": {
           "development": {
             "buildTarget": "@org/procedures-api:build:development"
           },
           "production": {
-            "buildTarget": "@org/procedures-api:build:production"
+            "buildTarget": "@org/procedures-api:build:production",
+            "inspect": false
           }
         }
       },

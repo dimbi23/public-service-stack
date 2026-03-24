@@ -64,14 +64,16 @@
         ],
         "options": {
           "buildTarget": "@org/wbb-service:build",
-          "runBuildTargetDependencies": false
+          "runBuildTargetDependencies": false,
+          "inspect": 9232
         },
         "configurations": {
           "development": {
             "buildTarget": "@org/wbb-service:build:development"
           },
           "production": {
-            "buildTarget": "@org/wbb-service:build:production"
+            "buildTarget": "@org/wbb-service:build:production",
+            "inspect": false
           }
         }
       },
