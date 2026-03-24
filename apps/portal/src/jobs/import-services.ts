@@ -218,7 +218,7 @@ async function upsertExecutionMapping(
 	svc: import("@org/normalizer").NormalizedService,
 	_overrideAccess: true,
 ): Promise<void> {
-	const mappingData = {
+	const mappingData: Record<string, unknown> & { serviceId: string } = {
 		serviceId: svc.serviceId,
 		normalizationConfidence: svc.workflow.normalizationConfidence,
 		reviewStatus: svc.workflow.reviewStatus === "approved_auto"
@@ -255,7 +255,7 @@ async function upsertExecutionMapping(
 		overrideAccess: true,
 	});
 	if (serviceDoc.docs.length > 0) {
-		(mappingData as any).service = serviceDoc.docs[0].id;
+		mappingData.service = serviceDoc.docs[0].id;
 	}
 
 	const existing = await payload.find({

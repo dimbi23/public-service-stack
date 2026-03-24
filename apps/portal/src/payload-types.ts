@@ -72,12 +72,14 @@ export interface Config {
     tenants: Tenant;
     departments: Department;
     services: Service;
+    'execution-mappings': ExecutionMapping;
     categories: Category;
     applications: Application;
     'service-views': ServiceView;
     forms: Form;
     'form-submissions': FormSubmission;
     search: Search;
+    'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -96,12 +98,14 @@ export interface Config {
     tenants: TenantsSelect<false> | TenantsSelect<true>;
     departments: DepartmentsSelect<false> | DepartmentsSelect<true>;
     services: ServicesSelect<false> | ServicesSelect<true>;
+    'execution-mappings': ExecutionMappingsSelect<false> | ExecutionMappingsSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     applications: ApplicationsSelect<false> | ApplicationsSelect<true>;
     'service-views': ServiceViewsSelect<false> | ServiceViewsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
     search: SearchSelect<false> | SearchSelect<true>;
+    'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -109,12 +113,14 @@ export interface Config {
   db: {
     defaultIDType: number;
   };
+  fallbackLocale: null;
   globals: {};
   globalsSelect: {};
   locale: null;
-  user: User & {
-    collection: 'users';
+  widgets: {
+    collections: CollectionsWidget;
   };
+  user: User;
   jobs: {
     tasks: unknown;
     workflows: unknown;
@@ -169,6 +175,7 @@ export interface User {
       }[]
     | null;
   password?: string | null;
+  collection: 'users';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -185,7 +192,7 @@ export interface Tenant {
     root: {
       type: string;
       children: {
-        type: string;
+        type: any;
         version: number;
         [k: string]: unknown;
       }[];
@@ -259,14 +266,17 @@ export interface Department {
 export interface Service {
   id: number;
   tenant?: (number | null) | Tenant;
+  /**
+   * Identifiant unique. Convention : MINISTRY-DOMAIN-NNN (ex : MID-AUTH-001)
+   */
+  serviceId: string;
   slug: string;
   name: string;
-  category: number | Category;
   description?: {
     root: {
       type: string;
       children: {
-        type: string;
+        type: any;
         version: number;
         [k: string]: unknown;
       }[];
@@ -278,38 +288,248 @@ export interface Service {
     [k: string]: unknown;
   } | null;
   /**
-   * Select a department. Super admins can see all departments; others see departments from their tenant.
+   * Ex : autorisation, attestation, enregistrement
    */
-  department: number | Department;
-  type: 'G2C' | 'G2B' | 'G2G';
-  audience?: ('citizens' | 'businesses' | 'residents' | 'tourists')[] | null;
-  access?: ('online' | 'offline' | 'hybrid') | null;
-  status?: ('active' | 'upcoming' | 'retired') | null;
+  type?: string | null;
+  status: 'active' | 'draft' | 'deprecated' | 'unknown';
+  /**
+   * URL canonique de la page officielle de la procédure
+   */
+  url?: string | null;
+  owner: {
+    /**
+     * Code court ou nom complet (ex : MID, Ministère de l'Intérieur)
+     */
+    ministry: string;
+    /**
+     * Entité autonome sous tutelle du ministère (ex : Office du Tourisme)
+     */
+    entity?: string | null;
+    directorate?: string | null;
+    serviceUnit?: string | null;
+  };
+  category?: (number | null) | Category;
+  /**
+   * Laisser vide pour une procédure d'application nationale
+   */
+  department?: (number | null) | Department;
+  /**
+   * Ex : Particuliers, Entreprises, Associations
+   */
+  audience?: string | null;
   eligibility?: string | null;
-  processingTime?: string | null;
+  languages?:
+    | {
+        /**
+         * Ex : fr, mg, en
+         */
+        code?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  tags?:
+    | {
+        tag?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  access?: {
+    channel?: ('online' | 'offline' | 'hybrid' | 'unknown') | null;
+    submissionPoints?:
+      | {
+          /**
+           * Ex : Commune de résidence, portail.gov.mg
+           */
+          point?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  processingTime?: {
+    /**
+     * Délai réglementaire ou déclaré en jours ouvrables
+     */
+    slaDays?: number | null;
+    /**
+     * Texte exact tel qu'extrait (ex : 15 jours ouvrables à compter de la réception du dossier complet)
+     */
+    rawText?: string | null;
+  };
   documentsRequired?:
     | {
-        documentName?: string | null;
+        /**
+         * Code issu du dictionnaire de taxonomie
+         */
+        documentTypeCode:
+          | 'DOC_ID_CIN'
+          | 'DOC_CIV_BIRTH'
+          | 'DOC_RES_CERT'
+          | 'DOC_SUP_ENVELOPE_A3'
+          | 'DOC_SUP_STAMP'
+          | 'DOC_SUP_FOLDING_FILE'
+          | 'DOC_REQ_APPLICATION_LETTER'
+          | 'DOC_REQ_APPLICATION_FORM'
+          | 'DOC_PAY_BANK_SLIP'
+          | 'DOC_PAY_INVOICE'
+          | 'DOC_ID_PASSPORT'
+          | 'DOC_VEH_REG_CARD'
+          | 'DOC_EDU_TRANSCRIPT'
+          | 'DOC_EDU_CERT_SUCCESS'
+          | 'DOC_EDU_RESEARCH_MEMOIR'
+          | 'DOC_HEALTH_MED_FORM'
+          | 'DOC_TECH_ANALYSIS_REPORT'
+          | 'DOC_AUTH_INTRO_LETTER'
+          | 'DOC_ID_PHOTO';
+        label: string;
+        requirementLevel: 'required' | 'conditional' | 'optional';
+        /**
+         * Renseigner uniquement si conditionnel (ex : Pour les demandeurs étrangers)
+         */
+        condition?: string | null;
         id?: string | null;
       }[]
     | null;
-  costs?:
-    | {
-        cost?: number | null;
-        id?: string | null;
-      }[]
-    | null;
-  supportContact?: string | null;
-  steps?:
-    | {
-        stepDescription?: string | null;
-        id?: string | null;
-      }[]
-    | null;
+  fee?: {
+    currency?: 'MGA' | null;
+    model?: ('fixed' | 'conditional' | 'range' | 'composite' | 'percentage' | 'unknown') | null;
+    rules?:
+      | {
+          /**
+           * Pattern : rule_xxx (ex : rule_fixed_base)
+           */
+          ruleId: string;
+          type: 'fixed' | 'range' | 'percentage' | 'component' | 'unknown';
+          amount?: number | null;
+          minAmount?: number | null;
+          maxAmount?: number | null;
+          percentage?: number | null;
+          condition?: string | null;
+          appliesTo?: string | null;
+          componentLabel?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    summary?: {
+      isConditional?: boolean | null;
+      minAmount?: number | null;
+      maxAmount?: number | null;
+      defaultAmount?: number | null;
+      /**
+       * Doit correspondre au nombre d'entrées dans Règles tarifaires (BR-005)
+       */
+      ruleCount?: number | null;
+    };
+  };
+  workflow?: {
+    normalizationConfidence?: ('auto_high' | 'auto_medium' | 'manual_required') | null;
+    reviewStatus?: ('approved_auto' | 'review_required' | 'manual_required') | null;
+    steps?:
+      | {
+          /**
+           * Pattern : step_xxx (ex : step_depot_dossier)
+           */
+          stepId: string;
+          order: number;
+          label: string;
+          description?: string | null;
+          stepType:
+            | 'submission'
+            | 'verification'
+            | 'inspection'
+            | 'payment'
+            | 'instruction'
+            | 'approval'
+            | 'decision'
+            | 'notification'
+            | 'delivery'
+            | 'archival'
+            | 'other';
+          actor?: ('citizen' | 'business' | 'administration' | 'mixed' | 'unknown') | null;
+          channel?: ('offline' | 'online' | 'hybrid' | 'unknown') | null;
+          requiresPayment?: boolean | null;
+          slaDays?: number | null;
+          documentsIn?:
+            | {
+                documentTypeCode?:
+                  | (
+                      | 'DOC_ID_CIN'
+                      | 'DOC_CIV_BIRTH'
+                      | 'DOC_RES_CERT'
+                      | 'DOC_SUP_ENVELOPE_A3'
+                      | 'DOC_SUP_STAMP'
+                      | 'DOC_SUP_FOLDING_FILE'
+                      | 'DOC_REQ_APPLICATION_LETTER'
+                      | 'DOC_REQ_APPLICATION_FORM'
+                      | 'DOC_PAY_BANK_SLIP'
+                      | 'DOC_PAY_INVOICE'
+                      | 'DOC_ID_PASSPORT'
+                      | 'DOC_VEH_REG_CARD'
+                      | 'DOC_EDU_TRANSCRIPT'
+                      | 'DOC_EDU_CERT_SUCCESS'
+                      | 'DOC_EDU_RESEARCH_MEMOIR'
+                      | 'DOC_HEALTH_MED_FORM'
+                      | 'DOC_TECH_ANALYSIS_REPORT'
+                      | 'DOC_AUTH_INTRO_LETTER'
+                      | 'DOC_ID_PHOTO'
+                    )
+                  | null;
+                id?: string | null;
+              }[]
+            | null;
+          documentsOut?:
+            | {
+                documentTypeCode?:
+                  | (
+                      | 'DOC_ID_CIN'
+                      | 'DOC_CIV_BIRTH'
+                      | 'DOC_RES_CERT'
+                      | 'DOC_SUP_ENVELOPE_A3'
+                      | 'DOC_SUP_STAMP'
+                      | 'DOC_SUP_FOLDING_FILE'
+                      | 'DOC_REQ_APPLICATION_LETTER'
+                      | 'DOC_REQ_APPLICATION_FORM'
+                      | 'DOC_PAY_BANK_SLIP'
+                      | 'DOC_PAY_INVOICE'
+                      | 'DOC_ID_PASSPORT'
+                      | 'DOC_VEH_REG_CARD'
+                      | 'DOC_EDU_TRANSCRIPT'
+                      | 'DOC_EDU_CERT_SUCCESS'
+                      | 'DOC_EDU_RESEARCH_MEMOIR'
+                      | 'DOC_HEALTH_MED_FORM'
+                      | 'DOC_TECH_ANALYSIS_REPORT'
+                      | 'DOC_AUTH_INTRO_LETTER'
+                      | 'DOC_ID_PHOTO'
+                    )
+                  | null;
+                id?: string | null;
+              }[]
+            | null;
+          responsibleUnit?: string | null;
+          confidence?: ('auto_high' | 'auto_medium' | 'manual_required') | null;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  supportContact?: {
+    phone?: string | null;
+    email?: string | null;
+    officeAddress?: string | null;
+  };
   /**
-   * Select a form. Super admins can see all forms; others see forms from their tenant.
+   * Super admins can see all forms; others see forms from their tenant.
    */
   form?: (number | null) | Form;
+  /**
+   * Champs calculés par le pipeline de normalisation — ne pas modifier manuellement
+   */
+  metrics?: {
+    frictionScore?: number | null;
+    documentsCount?: number | null;
+    /**
+     * Valeur entre 0.0 et 1.0
+     */
+    manualRequiredShare?: number | null;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -356,6 +576,40 @@ export interface Form {
             width?: number | null;
             required?: boolean | null;
             defaultValue?: boolean | null;
+            /**
+             * Identifiant stable (snake_case). Auto-généré depuis name si vide.
+             */
+            fieldId?: string | null;
+            /**
+             * Si ce champ collecte un document, sélectionner le code taxonomie correspondant.
+             */
+            mapsToDocumentTypeCode?:
+              | (
+                  | 'DOC_ID_CIN'
+                  | 'DOC_CIV_BIRTH'
+                  | 'DOC_RES_CERT'
+                  | 'DOC_SUP_ENVELOPE_A3'
+                  | 'DOC_SUP_STAMP'
+                  | 'DOC_SUP_FOLDING_FILE'
+                  | 'DOC_REQ_APPLICATION_LETTER'
+                  | 'DOC_REQ_APPLICATION_FORM'
+                  | 'DOC_PAY_BANK_SLIP'
+                  | 'DOC_PAY_INVOICE'
+                  | 'DOC_ID_PASSPORT'
+                  | 'DOC_VEH_REG_CARD'
+                  | 'DOC_EDU_TRANSCRIPT'
+                  | 'DOC_EDU_CERT_SUCCESS'
+                  | 'DOC_EDU_RESEARCH_MEMOIR'
+                  | 'DOC_HEALTH_MED_FORM'
+                  | 'DOC_TECH_ANALYSIS_REPORT'
+                  | 'DOC_AUTH_INTRO_LETTER'
+                  | 'DOC_ID_PHOTO'
+                )
+              | null;
+            /**
+             * stepId de l'étape de workflow à laquelle ce champ appartient (ex: step_depot_dossier).
+             */
+            mapsToWorkflowStepId?: string | null;
             id?: string | null;
             blockName?: string | null;
             blockType: 'checkbox';
@@ -365,6 +619,40 @@ export interface Form {
             label?: string | null;
             width?: number | null;
             required?: boolean | null;
+            /**
+             * Identifiant stable (snake_case). Auto-généré depuis name si vide.
+             */
+            fieldId?: string | null;
+            /**
+             * Si ce champ collecte un document, sélectionner le code taxonomie correspondant.
+             */
+            mapsToDocumentTypeCode?:
+              | (
+                  | 'DOC_ID_CIN'
+                  | 'DOC_CIV_BIRTH'
+                  | 'DOC_RES_CERT'
+                  | 'DOC_SUP_ENVELOPE_A3'
+                  | 'DOC_SUP_STAMP'
+                  | 'DOC_SUP_FOLDING_FILE'
+                  | 'DOC_REQ_APPLICATION_LETTER'
+                  | 'DOC_REQ_APPLICATION_FORM'
+                  | 'DOC_PAY_BANK_SLIP'
+                  | 'DOC_PAY_INVOICE'
+                  | 'DOC_ID_PASSPORT'
+                  | 'DOC_VEH_REG_CARD'
+                  | 'DOC_EDU_TRANSCRIPT'
+                  | 'DOC_EDU_CERT_SUCCESS'
+                  | 'DOC_EDU_RESEARCH_MEMOIR'
+                  | 'DOC_HEALTH_MED_FORM'
+                  | 'DOC_TECH_ANALYSIS_REPORT'
+                  | 'DOC_AUTH_INTRO_LETTER'
+                  | 'DOC_ID_PHOTO'
+                )
+              | null;
+            /**
+             * stepId de l'étape de workflow à laquelle ce champ appartient (ex: step_depot_dossier).
+             */
+            mapsToWorkflowStepId?: string | null;
             id?: string | null;
             blockName?: string | null;
             blockType: 'email';
@@ -374,7 +662,7 @@ export interface Form {
               root: {
                 type: string;
                 children: {
-                  type: string;
+                  type: any;
                   version: number;
                   [k: string]: unknown;
                 }[];
@@ -385,6 +673,40 @@ export interface Form {
               };
               [k: string]: unknown;
             } | null;
+            /**
+             * Identifiant stable (snake_case). Auto-généré depuis name si vide.
+             */
+            fieldId?: string | null;
+            /**
+             * Si ce champ collecte un document, sélectionner le code taxonomie correspondant.
+             */
+            mapsToDocumentTypeCode?:
+              | (
+                  | 'DOC_ID_CIN'
+                  | 'DOC_CIV_BIRTH'
+                  | 'DOC_RES_CERT'
+                  | 'DOC_SUP_ENVELOPE_A3'
+                  | 'DOC_SUP_STAMP'
+                  | 'DOC_SUP_FOLDING_FILE'
+                  | 'DOC_REQ_APPLICATION_LETTER'
+                  | 'DOC_REQ_APPLICATION_FORM'
+                  | 'DOC_PAY_BANK_SLIP'
+                  | 'DOC_PAY_INVOICE'
+                  | 'DOC_ID_PASSPORT'
+                  | 'DOC_VEH_REG_CARD'
+                  | 'DOC_EDU_TRANSCRIPT'
+                  | 'DOC_EDU_CERT_SUCCESS'
+                  | 'DOC_EDU_RESEARCH_MEMOIR'
+                  | 'DOC_HEALTH_MED_FORM'
+                  | 'DOC_TECH_ANALYSIS_REPORT'
+                  | 'DOC_AUTH_INTRO_LETTER'
+                  | 'DOC_ID_PHOTO'
+                )
+              | null;
+            /**
+             * stepId de l'étape de workflow à laquelle ce champ appartient (ex: step_depot_dossier).
+             */
+            mapsToWorkflowStepId?: string | null;
             id?: string | null;
             blockName?: string | null;
             blockType: 'message';
@@ -395,6 +717,40 @@ export interface Form {
             width?: number | null;
             defaultValue?: number | null;
             required?: boolean | null;
+            /**
+             * Identifiant stable (snake_case). Auto-généré depuis name si vide.
+             */
+            fieldId?: string | null;
+            /**
+             * Si ce champ collecte un document, sélectionner le code taxonomie correspondant.
+             */
+            mapsToDocumentTypeCode?:
+              | (
+                  | 'DOC_ID_CIN'
+                  | 'DOC_CIV_BIRTH'
+                  | 'DOC_RES_CERT'
+                  | 'DOC_SUP_ENVELOPE_A3'
+                  | 'DOC_SUP_STAMP'
+                  | 'DOC_SUP_FOLDING_FILE'
+                  | 'DOC_REQ_APPLICATION_LETTER'
+                  | 'DOC_REQ_APPLICATION_FORM'
+                  | 'DOC_PAY_BANK_SLIP'
+                  | 'DOC_PAY_INVOICE'
+                  | 'DOC_ID_PASSPORT'
+                  | 'DOC_VEH_REG_CARD'
+                  | 'DOC_EDU_TRANSCRIPT'
+                  | 'DOC_EDU_CERT_SUCCESS'
+                  | 'DOC_EDU_RESEARCH_MEMOIR'
+                  | 'DOC_HEALTH_MED_FORM'
+                  | 'DOC_TECH_ANALYSIS_REPORT'
+                  | 'DOC_AUTH_INTRO_LETTER'
+                  | 'DOC_ID_PHOTO'
+                )
+              | null;
+            /**
+             * stepId de l'étape de workflow à laquelle ce champ appartient (ex: step_depot_dossier).
+             */
+            mapsToWorkflowStepId?: string | null;
             id?: string | null;
             blockName?: string | null;
             blockType: 'number';
@@ -413,6 +769,40 @@ export interface Form {
                 }[]
               | null;
             required?: boolean | null;
+            /**
+             * Identifiant stable (snake_case). Auto-généré depuis name si vide.
+             */
+            fieldId?: string | null;
+            /**
+             * Si ce champ collecte un document, sélectionner le code taxonomie correspondant.
+             */
+            mapsToDocumentTypeCode?:
+              | (
+                  | 'DOC_ID_CIN'
+                  | 'DOC_CIV_BIRTH'
+                  | 'DOC_RES_CERT'
+                  | 'DOC_SUP_ENVELOPE_A3'
+                  | 'DOC_SUP_STAMP'
+                  | 'DOC_SUP_FOLDING_FILE'
+                  | 'DOC_REQ_APPLICATION_LETTER'
+                  | 'DOC_REQ_APPLICATION_FORM'
+                  | 'DOC_PAY_BANK_SLIP'
+                  | 'DOC_PAY_INVOICE'
+                  | 'DOC_ID_PASSPORT'
+                  | 'DOC_VEH_REG_CARD'
+                  | 'DOC_EDU_TRANSCRIPT'
+                  | 'DOC_EDU_CERT_SUCCESS'
+                  | 'DOC_EDU_RESEARCH_MEMOIR'
+                  | 'DOC_HEALTH_MED_FORM'
+                  | 'DOC_TECH_ANALYSIS_REPORT'
+                  | 'DOC_AUTH_INTRO_LETTER'
+                  | 'DOC_ID_PHOTO'
+                )
+              | null;
+            /**
+             * stepId de l'étape de workflow à laquelle ce champ appartient (ex: step_depot_dossier).
+             */
+            mapsToWorkflowStepId?: string | null;
             id?: string | null;
             blockName?: string | null;
             blockType: 'select';
@@ -423,6 +813,40 @@ export interface Form {
             width?: number | null;
             defaultValue?: string | null;
             required?: boolean | null;
+            /**
+             * Identifiant stable (snake_case). Auto-généré depuis name si vide.
+             */
+            fieldId?: string | null;
+            /**
+             * Si ce champ collecte un document, sélectionner le code taxonomie correspondant.
+             */
+            mapsToDocumentTypeCode?:
+              | (
+                  | 'DOC_ID_CIN'
+                  | 'DOC_CIV_BIRTH'
+                  | 'DOC_RES_CERT'
+                  | 'DOC_SUP_ENVELOPE_A3'
+                  | 'DOC_SUP_STAMP'
+                  | 'DOC_SUP_FOLDING_FILE'
+                  | 'DOC_REQ_APPLICATION_LETTER'
+                  | 'DOC_REQ_APPLICATION_FORM'
+                  | 'DOC_PAY_BANK_SLIP'
+                  | 'DOC_PAY_INVOICE'
+                  | 'DOC_ID_PASSPORT'
+                  | 'DOC_VEH_REG_CARD'
+                  | 'DOC_EDU_TRANSCRIPT'
+                  | 'DOC_EDU_CERT_SUCCESS'
+                  | 'DOC_EDU_RESEARCH_MEMOIR'
+                  | 'DOC_HEALTH_MED_FORM'
+                  | 'DOC_TECH_ANALYSIS_REPORT'
+                  | 'DOC_AUTH_INTRO_LETTER'
+                  | 'DOC_ID_PHOTO'
+                )
+              | null;
+            /**
+             * stepId de l'étape de workflow à laquelle ce champ appartient (ex: step_depot_dossier).
+             */
+            mapsToWorkflowStepId?: string | null;
             id?: string | null;
             blockName?: string | null;
             blockType: 'text';
@@ -433,6 +857,40 @@ export interface Form {
             width?: number | null;
             defaultValue?: string | null;
             required?: boolean | null;
+            /**
+             * Identifiant stable (snake_case). Auto-généré depuis name si vide.
+             */
+            fieldId?: string | null;
+            /**
+             * Si ce champ collecte un document, sélectionner le code taxonomie correspondant.
+             */
+            mapsToDocumentTypeCode?:
+              | (
+                  | 'DOC_ID_CIN'
+                  | 'DOC_CIV_BIRTH'
+                  | 'DOC_RES_CERT'
+                  | 'DOC_SUP_ENVELOPE_A3'
+                  | 'DOC_SUP_STAMP'
+                  | 'DOC_SUP_FOLDING_FILE'
+                  | 'DOC_REQ_APPLICATION_LETTER'
+                  | 'DOC_REQ_APPLICATION_FORM'
+                  | 'DOC_PAY_BANK_SLIP'
+                  | 'DOC_PAY_INVOICE'
+                  | 'DOC_ID_PASSPORT'
+                  | 'DOC_VEH_REG_CARD'
+                  | 'DOC_EDU_TRANSCRIPT'
+                  | 'DOC_EDU_CERT_SUCCESS'
+                  | 'DOC_EDU_RESEARCH_MEMOIR'
+                  | 'DOC_HEALTH_MED_FORM'
+                  | 'DOC_TECH_ANALYSIS_REPORT'
+                  | 'DOC_AUTH_INTRO_LETTER'
+                  | 'DOC_ID_PHOTO'
+                )
+              | null;
+            /**
+             * stepId de l'étape de workflow à laquelle ce champ appartient (ex: step_depot_dossier).
+             */
+            mapsToWorkflowStepId?: string | null;
             id?: string | null;
             blockName?: string | null;
             blockType: 'textarea';
@@ -456,6 +914,40 @@ export interface Form {
                       width?: number | null;
                       defaultValue?: string | null;
                       required?: boolean | null;
+                      /**
+                       * Identifiant stable (snake_case). Auto-généré depuis name si vide.
+                       */
+                      fieldId?: string | null;
+                      /**
+                       * Si ce champ collecte un document, sélectionner le code taxonomie correspondant.
+                       */
+                      mapsToDocumentTypeCode?:
+                        | (
+                            | 'DOC_ID_CIN'
+                            | 'DOC_CIV_BIRTH'
+                            | 'DOC_RES_CERT'
+                            | 'DOC_SUP_ENVELOPE_A3'
+                            | 'DOC_SUP_STAMP'
+                            | 'DOC_SUP_FOLDING_FILE'
+                            | 'DOC_REQ_APPLICATION_LETTER'
+                            | 'DOC_REQ_APPLICATION_FORM'
+                            | 'DOC_PAY_BANK_SLIP'
+                            | 'DOC_PAY_INVOICE'
+                            | 'DOC_ID_PASSPORT'
+                            | 'DOC_VEH_REG_CARD'
+                            | 'DOC_EDU_TRANSCRIPT'
+                            | 'DOC_EDU_CERT_SUCCESS'
+                            | 'DOC_EDU_RESEARCH_MEMOIR'
+                            | 'DOC_HEALTH_MED_FORM'
+                            | 'DOC_TECH_ANALYSIS_REPORT'
+                            | 'DOC_AUTH_INTRO_LETTER'
+                            | 'DOC_ID_PHOTO'
+                          )
+                        | null;
+                      /**
+                       * stepId de l'étape de workflow à laquelle ce champ appartient (ex: step_depot_dossier).
+                       */
+                      mapsToWorkflowStepId?: string | null;
                       id?: string | null;
                       blockName?: string | null;
                       blockType: 'text';
@@ -466,6 +958,40 @@ export interface Form {
                       width?: number | null;
                       defaultValue?: string | null;
                       required?: boolean | null;
+                      /**
+                       * Identifiant stable (snake_case). Auto-généré depuis name si vide.
+                       */
+                      fieldId?: string | null;
+                      /**
+                       * Si ce champ collecte un document, sélectionner le code taxonomie correspondant.
+                       */
+                      mapsToDocumentTypeCode?:
+                        | (
+                            | 'DOC_ID_CIN'
+                            | 'DOC_CIV_BIRTH'
+                            | 'DOC_RES_CERT'
+                            | 'DOC_SUP_ENVELOPE_A3'
+                            | 'DOC_SUP_STAMP'
+                            | 'DOC_SUP_FOLDING_FILE'
+                            | 'DOC_REQ_APPLICATION_LETTER'
+                            | 'DOC_REQ_APPLICATION_FORM'
+                            | 'DOC_PAY_BANK_SLIP'
+                            | 'DOC_PAY_INVOICE'
+                            | 'DOC_ID_PASSPORT'
+                            | 'DOC_VEH_REG_CARD'
+                            | 'DOC_EDU_TRANSCRIPT'
+                            | 'DOC_EDU_CERT_SUCCESS'
+                            | 'DOC_EDU_RESEARCH_MEMOIR'
+                            | 'DOC_HEALTH_MED_FORM'
+                            | 'DOC_TECH_ANALYSIS_REPORT'
+                            | 'DOC_AUTH_INTRO_LETTER'
+                            | 'DOC_ID_PHOTO'
+                          )
+                        | null;
+                      /**
+                       * stepId de l'étape de workflow à laquelle ce champ appartient (ex: step_depot_dossier).
+                       */
+                      mapsToWorkflowStepId?: string | null;
                       id?: string | null;
                       blockName?: string | null;
                       blockType: 'textarea';
@@ -484,6 +1010,40 @@ export interface Form {
                           }[]
                         | null;
                       required?: boolean | null;
+                      /**
+                       * Identifiant stable (snake_case). Auto-généré depuis name si vide.
+                       */
+                      fieldId?: string | null;
+                      /**
+                       * Si ce champ collecte un document, sélectionner le code taxonomie correspondant.
+                       */
+                      mapsToDocumentTypeCode?:
+                        | (
+                            | 'DOC_ID_CIN'
+                            | 'DOC_CIV_BIRTH'
+                            | 'DOC_RES_CERT'
+                            | 'DOC_SUP_ENVELOPE_A3'
+                            | 'DOC_SUP_STAMP'
+                            | 'DOC_SUP_FOLDING_FILE'
+                            | 'DOC_REQ_APPLICATION_LETTER'
+                            | 'DOC_REQ_APPLICATION_FORM'
+                            | 'DOC_PAY_BANK_SLIP'
+                            | 'DOC_PAY_INVOICE'
+                            | 'DOC_ID_PASSPORT'
+                            | 'DOC_VEH_REG_CARD'
+                            | 'DOC_EDU_TRANSCRIPT'
+                            | 'DOC_EDU_CERT_SUCCESS'
+                            | 'DOC_EDU_RESEARCH_MEMOIR'
+                            | 'DOC_HEALTH_MED_FORM'
+                            | 'DOC_TECH_ANALYSIS_REPORT'
+                            | 'DOC_AUTH_INTRO_LETTER'
+                            | 'DOC_ID_PHOTO'
+                          )
+                        | null;
+                      /**
+                       * stepId de l'étape de workflow à laquelle ce champ appartient (ex: step_depot_dossier).
+                       */
+                      mapsToWorkflowStepId?: string | null;
                       id?: string | null;
                       blockName?: string | null;
                       blockType: 'select';
@@ -493,6 +1053,40 @@ export interface Form {
                       label?: string | null;
                       width?: number | null;
                       required?: boolean | null;
+                      /**
+                       * Identifiant stable (snake_case). Auto-généré depuis name si vide.
+                       */
+                      fieldId?: string | null;
+                      /**
+                       * Si ce champ collecte un document, sélectionner le code taxonomie correspondant.
+                       */
+                      mapsToDocumentTypeCode?:
+                        | (
+                            | 'DOC_ID_CIN'
+                            | 'DOC_CIV_BIRTH'
+                            | 'DOC_RES_CERT'
+                            | 'DOC_SUP_ENVELOPE_A3'
+                            | 'DOC_SUP_STAMP'
+                            | 'DOC_SUP_FOLDING_FILE'
+                            | 'DOC_REQ_APPLICATION_LETTER'
+                            | 'DOC_REQ_APPLICATION_FORM'
+                            | 'DOC_PAY_BANK_SLIP'
+                            | 'DOC_PAY_INVOICE'
+                            | 'DOC_ID_PASSPORT'
+                            | 'DOC_VEH_REG_CARD'
+                            | 'DOC_EDU_TRANSCRIPT'
+                            | 'DOC_EDU_CERT_SUCCESS'
+                            | 'DOC_EDU_RESEARCH_MEMOIR'
+                            | 'DOC_HEALTH_MED_FORM'
+                            | 'DOC_TECH_ANALYSIS_REPORT'
+                            | 'DOC_AUTH_INTRO_LETTER'
+                            | 'DOC_ID_PHOTO'
+                          )
+                        | null;
+                      /**
+                       * stepId de l'étape de workflow à laquelle ce champ appartient (ex: step_depot_dossier).
+                       */
+                      mapsToWorkflowStepId?: string | null;
                       id?: string | null;
                       blockName?: string | null;
                       blockType: 'email';
@@ -503,6 +1097,40 @@ export interface Form {
                       width?: number | null;
                       defaultValue?: number | null;
                       required?: boolean | null;
+                      /**
+                       * Identifiant stable (snake_case). Auto-généré depuis name si vide.
+                       */
+                      fieldId?: string | null;
+                      /**
+                       * Si ce champ collecte un document, sélectionner le code taxonomie correspondant.
+                       */
+                      mapsToDocumentTypeCode?:
+                        | (
+                            | 'DOC_ID_CIN'
+                            | 'DOC_CIV_BIRTH'
+                            | 'DOC_RES_CERT'
+                            | 'DOC_SUP_ENVELOPE_A3'
+                            | 'DOC_SUP_STAMP'
+                            | 'DOC_SUP_FOLDING_FILE'
+                            | 'DOC_REQ_APPLICATION_LETTER'
+                            | 'DOC_REQ_APPLICATION_FORM'
+                            | 'DOC_PAY_BANK_SLIP'
+                            | 'DOC_PAY_INVOICE'
+                            | 'DOC_ID_PASSPORT'
+                            | 'DOC_VEH_REG_CARD'
+                            | 'DOC_EDU_TRANSCRIPT'
+                            | 'DOC_EDU_CERT_SUCCESS'
+                            | 'DOC_EDU_RESEARCH_MEMOIR'
+                            | 'DOC_HEALTH_MED_FORM'
+                            | 'DOC_TECH_ANALYSIS_REPORT'
+                            | 'DOC_AUTH_INTRO_LETTER'
+                            | 'DOC_ID_PHOTO'
+                          )
+                        | null;
+                      /**
+                       * stepId de l'étape de workflow à laquelle ce champ appartient (ex: step_depot_dossier).
+                       */
+                      mapsToWorkflowStepId?: string | null;
                       id?: string | null;
                       blockName?: string | null;
                       blockType: 'number';
@@ -513,6 +1141,40 @@ export interface Form {
                       width?: number | null;
                       required?: boolean | null;
                       defaultValue?: boolean | null;
+                      /**
+                       * Identifiant stable (snake_case). Auto-généré depuis name si vide.
+                       */
+                      fieldId?: string | null;
+                      /**
+                       * Si ce champ collecte un document, sélectionner le code taxonomie correspondant.
+                       */
+                      mapsToDocumentTypeCode?:
+                        | (
+                            | 'DOC_ID_CIN'
+                            | 'DOC_CIV_BIRTH'
+                            | 'DOC_RES_CERT'
+                            | 'DOC_SUP_ENVELOPE_A3'
+                            | 'DOC_SUP_STAMP'
+                            | 'DOC_SUP_FOLDING_FILE'
+                            | 'DOC_REQ_APPLICATION_LETTER'
+                            | 'DOC_REQ_APPLICATION_FORM'
+                            | 'DOC_PAY_BANK_SLIP'
+                            | 'DOC_PAY_INVOICE'
+                            | 'DOC_ID_PASSPORT'
+                            | 'DOC_VEH_REG_CARD'
+                            | 'DOC_EDU_TRANSCRIPT'
+                            | 'DOC_EDU_CERT_SUCCESS'
+                            | 'DOC_EDU_RESEARCH_MEMOIR'
+                            | 'DOC_HEALTH_MED_FORM'
+                            | 'DOC_TECH_ANALYSIS_REPORT'
+                            | 'DOC_AUTH_INTRO_LETTER'
+                            | 'DOC_ID_PHOTO'
+                          )
+                        | null;
+                      /**
+                       * stepId de l'étape de workflow à laquelle ce champ appartient (ex: step_depot_dossier).
+                       */
+                      mapsToWorkflowStepId?: string | null;
                       id?: string | null;
                       blockName?: string | null;
                       blockType: 'checkbox';
@@ -522,7 +1184,7 @@ export interface Form {
                         root: {
                           type: string;
                           children: {
-                            type: string;
+                            type: any;
                             version: number;
                             [k: string]: unknown;
                           }[];
@@ -533,6 +1195,40 @@ export interface Form {
                         };
                         [k: string]: unknown;
                       } | null;
+                      /**
+                       * Identifiant stable (snake_case). Auto-généré depuis name si vide.
+                       */
+                      fieldId?: string | null;
+                      /**
+                       * Si ce champ collecte un document, sélectionner le code taxonomie correspondant.
+                       */
+                      mapsToDocumentTypeCode?:
+                        | (
+                            | 'DOC_ID_CIN'
+                            | 'DOC_CIV_BIRTH'
+                            | 'DOC_RES_CERT'
+                            | 'DOC_SUP_ENVELOPE_A3'
+                            | 'DOC_SUP_STAMP'
+                            | 'DOC_SUP_FOLDING_FILE'
+                            | 'DOC_REQ_APPLICATION_LETTER'
+                            | 'DOC_REQ_APPLICATION_FORM'
+                            | 'DOC_PAY_BANK_SLIP'
+                            | 'DOC_PAY_INVOICE'
+                            | 'DOC_ID_PASSPORT'
+                            | 'DOC_VEH_REG_CARD'
+                            | 'DOC_EDU_TRANSCRIPT'
+                            | 'DOC_EDU_CERT_SUCCESS'
+                            | 'DOC_EDU_RESEARCH_MEMOIR'
+                            | 'DOC_HEALTH_MED_FORM'
+                            | 'DOC_TECH_ANALYSIS_REPORT'
+                            | 'DOC_AUTH_INTRO_LETTER'
+                            | 'DOC_ID_PHOTO'
+                          )
+                        | null;
+                      /**
+                       * stepId de l'étape de workflow à laquelle ce champ appartient (ex: step_depot_dossier).
+                       */
+                      mapsToWorkflowStepId?: string | null;
                       id?: string | null;
                       blockName?: string | null;
                       blockType: 'message';
@@ -554,7 +1250,7 @@ export interface Form {
     root: {
       type: string;
       children: {
-        type: string;
+        type: any;
         version: number;
         [k: string]: unknown;
       }[];
@@ -586,7 +1282,7 @@ export interface Form {
           root: {
             type: string;
             children: {
-              type: string;
+              type: any;
               version: number;
               [k: string]: unknown;
             }[];
@@ -639,12 +1335,93 @@ export interface Form {
   createdAt: string;
 }
 /**
+ * Execution specs for the workflow engine (wbb-service). Not served in Public API.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "execution-mappings".
+ */
+export interface ExecutionMapping {
+  id: number;
+  /**
+   * Must match Services.serviceId (e.g. MAM-CENAM-B-P1)
+   */
+  serviceId: string;
+  /**
+   * Linked Services document
+   */
+  service: number | Service;
+  /**
+   * SemVer — bump on any structural change
+   */
+  version?: string | null;
+  reviewStatus: 'approved' | 'review_required' | 'manual_required';
+  normalizationConfidence?: ('auto_high' | 'auto_medium' | 'manual_required') | null;
+  process?: {
+    /**
+     * Pattern: proc_<serviceId_slug>
+     */
+    processId?: string | null;
+    version?: string | null;
+    actor?: ('citizen' | 'business' | 'administration' | 'mixed') | null;
+    channel?: ('online' | 'offline' | 'hybrid') | null;
+    estimatedDurationDays?: number | null;
+    steps?:
+      | {
+          /**
+           * Doit correspondre à workflow.steps[].stepId dans Services
+           */
+          stepId: string;
+          order: number;
+          label: string;
+          stepType:
+            | 'submission'
+            | 'verification'
+            | 'inspection'
+            | 'payment'
+            | 'instruction'
+            | 'approval'
+            | 'decision'
+            | 'notification'
+            | 'delivery'
+            | 'archival'
+            | 'other';
+          actor?: ('citizen' | 'business' | 'administration' | 'mixed' | 'unknown') | null;
+          channel?: ('offline' | 'online' | 'hybrid' | 'unknown') | null;
+          requiresPayment?: boolean | null;
+          slaDays?: number | null;
+          responsibleUnit?: string | null;
+          /**
+           * GovStack WBB mapping
+           */
+          wbbTaskType?: ('UserTask' | 'ServiceTask' | 'Gateway' | 'Event') | null;
+          /**
+           * RBAC role in wbb-service (e.g. OFFICER, CITIZEN)
+           */
+          wbbAssigneeRole?: string | null;
+          automatable?: boolean | null;
+          confidence?: ('auto_high' | 'auto_medium' | 'manual_required') | null;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  /**
+   * Commentaires de l'équipe de validation
+   */
+  reviewNotes?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "applications".
  */
 export interface Application {
   id: number;
   trackingId: string;
+  /**
+   * Case ID from case-api (UUID)
+   */
+  caseId?: string | null;
   status: 'pending' | 'processing' | 'approved' | 'rejected' | 'info_required';
   submission: number | FormSubmission;
   service?: (number | null) | Service;
@@ -709,6 +1486,23 @@ export interface Search {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-kv".
+ */
+export interface PayloadKv {
+  id: number;
+  key: string;
+  data:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -733,6 +1527,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'services';
         value: number | Service;
+      } | null)
+    | ({
+        relationTo: 'execution-mappings';
+        value: number | ExecutionMapping;
       } | null)
     | ({
         relationTo: 'categories';
@@ -892,37 +1690,182 @@ export interface DepartmentsSelect<T extends boolean = true> {
  */
 export interface ServicesSelect<T extends boolean = true> {
   tenant?: T;
+  serviceId?: T;
   slug?: T;
   name?: T;
-  category?: T;
   description?: T;
-  department?: T;
   type?: T;
-  audience?: T;
-  access?: T;
   status?: T;
+  url?: T;
+  owner?:
+    | T
+    | {
+        ministry?: T;
+        entity?: T;
+        directorate?: T;
+        serviceUnit?: T;
+      };
+  category?: T;
+  department?: T;
+  audience?: T;
   eligibility?: T;
-  processingTime?: T;
+  languages?:
+    | T
+    | {
+        code?: T;
+        id?: T;
+      };
+  tags?:
+    | T
+    | {
+        tag?: T;
+        id?: T;
+      };
+  access?:
+    | T
+    | {
+        channel?: T;
+        submissionPoints?:
+          | T
+          | {
+              point?: T;
+              id?: T;
+            };
+      };
+  processingTime?:
+    | T
+    | {
+        slaDays?: T;
+        rawText?: T;
+      };
   documentsRequired?:
     | T
     | {
-        documentName?: T;
+        documentTypeCode?: T;
+        label?: T;
+        requirementLevel?: T;
+        condition?: T;
         id?: T;
       };
-  costs?:
+  fee?:
     | T
     | {
-        cost?: T;
-        id?: T;
+        currency?: T;
+        model?: T;
+        rules?:
+          | T
+          | {
+              ruleId?: T;
+              type?: T;
+              amount?: T;
+              minAmount?: T;
+              maxAmount?: T;
+              percentage?: T;
+              condition?: T;
+              appliesTo?: T;
+              componentLabel?: T;
+              id?: T;
+            };
+        summary?:
+          | T
+          | {
+              isConditional?: T;
+              minAmount?: T;
+              maxAmount?: T;
+              defaultAmount?: T;
+              ruleCount?: T;
+            };
       };
-  supportContact?: T;
-  steps?:
+  workflow?:
     | T
     | {
-        stepDescription?: T;
-        id?: T;
+        normalizationConfidence?: T;
+        reviewStatus?: T;
+        steps?:
+          | T
+          | {
+              stepId?: T;
+              order?: T;
+              label?: T;
+              description?: T;
+              stepType?: T;
+              actor?: T;
+              channel?: T;
+              requiresPayment?: T;
+              slaDays?: T;
+              documentsIn?:
+                | T
+                | {
+                    documentTypeCode?: T;
+                    id?: T;
+                  };
+              documentsOut?:
+                | T
+                | {
+                    documentTypeCode?: T;
+                    id?: T;
+                  };
+              responsibleUnit?: T;
+              confidence?: T;
+              id?: T;
+            };
+      };
+  supportContact?:
+    | T
+    | {
+        phone?: T;
+        email?: T;
+        officeAddress?: T;
       };
   form?: T;
+  metrics?:
+    | T
+    | {
+        frictionScore?: T;
+        documentsCount?: T;
+        manualRequiredShare?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "execution-mappings_select".
+ */
+export interface ExecutionMappingsSelect<T extends boolean = true> {
+  serviceId?: T;
+  service?: T;
+  version?: T;
+  reviewStatus?: T;
+  normalizationConfidence?: T;
+  process?:
+    | T
+    | {
+        processId?: T;
+        version?: T;
+        actor?: T;
+        channel?: T;
+        estimatedDurationDays?: T;
+        steps?:
+          | T
+          | {
+              stepId?: T;
+              order?: T;
+              label?: T;
+              stepType?: T;
+              actor?: T;
+              channel?: T;
+              requiresPayment?: T;
+              slaDays?: T;
+              responsibleUnit?: T;
+              wbbTaskType?: T;
+              wbbAssigneeRole?: T;
+              automatable?: T;
+              confidence?: T;
+              id?: T;
+            };
+      };
+  reviewNotes?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -946,6 +1889,7 @@ export interface CategoriesSelect<T extends boolean = true> {
  */
 export interface ApplicationsSelect<T extends boolean = true> {
   trackingId?: T;
+  caseId?: T;
   status?: T;
   submission?: T;
   service?: T;
@@ -988,6 +1932,9 @@ export interface FormsSelect<T extends boolean = true> {
               width?: T;
               required?: T;
               defaultValue?: T;
+              fieldId?: T;
+              mapsToDocumentTypeCode?: T;
+              mapsToWorkflowStepId?: T;
               id?: T;
               blockName?: T;
             };
@@ -998,6 +1945,9 @@ export interface FormsSelect<T extends boolean = true> {
               label?: T;
               width?: T;
               required?: T;
+              fieldId?: T;
+              mapsToDocumentTypeCode?: T;
+              mapsToWorkflowStepId?: T;
               id?: T;
               blockName?: T;
             };
@@ -1005,6 +1955,9 @@ export interface FormsSelect<T extends boolean = true> {
           | T
           | {
               message?: T;
+              fieldId?: T;
+              mapsToDocumentTypeCode?: T;
+              mapsToWorkflowStepId?: T;
               id?: T;
               blockName?: T;
             };
@@ -1016,6 +1969,9 @@ export interface FormsSelect<T extends boolean = true> {
               width?: T;
               defaultValue?: T;
               required?: T;
+              fieldId?: T;
+              mapsToDocumentTypeCode?: T;
+              mapsToWorkflowStepId?: T;
               id?: T;
               blockName?: T;
             };
@@ -1035,6 +1991,9 @@ export interface FormsSelect<T extends boolean = true> {
                     id?: T;
                   };
               required?: T;
+              fieldId?: T;
+              mapsToDocumentTypeCode?: T;
+              mapsToWorkflowStepId?: T;
               id?: T;
               blockName?: T;
             };
@@ -1046,6 +2005,9 @@ export interface FormsSelect<T extends boolean = true> {
               width?: T;
               defaultValue?: T;
               required?: T;
+              fieldId?: T;
+              mapsToDocumentTypeCode?: T;
+              mapsToWorkflowStepId?: T;
               id?: T;
               blockName?: T;
             };
@@ -1057,6 +2019,9 @@ export interface FormsSelect<T extends boolean = true> {
               width?: T;
               defaultValue?: T;
               required?: T;
+              fieldId?: T;
+              mapsToDocumentTypeCode?: T;
+              mapsToWorkflowStepId?: T;
               id?: T;
               blockName?: T;
             };
@@ -1078,6 +2043,9 @@ export interface FormsSelect<T extends boolean = true> {
                           width?: T;
                           defaultValue?: T;
                           required?: T;
+                          fieldId?: T;
+                          mapsToDocumentTypeCode?: T;
+                          mapsToWorkflowStepId?: T;
                           id?: T;
                           blockName?: T;
                         };
@@ -1089,6 +2057,9 @@ export interface FormsSelect<T extends boolean = true> {
                           width?: T;
                           defaultValue?: T;
                           required?: T;
+                          fieldId?: T;
+                          mapsToDocumentTypeCode?: T;
+                          mapsToWorkflowStepId?: T;
                           id?: T;
                           blockName?: T;
                         };
@@ -1108,6 +2079,9 @@ export interface FormsSelect<T extends boolean = true> {
                                 id?: T;
                               };
                           required?: T;
+                          fieldId?: T;
+                          mapsToDocumentTypeCode?: T;
+                          mapsToWorkflowStepId?: T;
                           id?: T;
                           blockName?: T;
                         };
@@ -1118,6 +2092,9 @@ export interface FormsSelect<T extends boolean = true> {
                           label?: T;
                           width?: T;
                           required?: T;
+                          fieldId?: T;
+                          mapsToDocumentTypeCode?: T;
+                          mapsToWorkflowStepId?: T;
                           id?: T;
                           blockName?: T;
                         };
@@ -1129,6 +2106,9 @@ export interface FormsSelect<T extends boolean = true> {
                           width?: T;
                           defaultValue?: T;
                           required?: T;
+                          fieldId?: T;
+                          mapsToDocumentTypeCode?: T;
+                          mapsToWorkflowStepId?: T;
                           id?: T;
                           blockName?: T;
                         };
@@ -1140,6 +2120,9 @@ export interface FormsSelect<T extends boolean = true> {
                           width?: T;
                           required?: T;
                           defaultValue?: T;
+                          fieldId?: T;
+                          mapsToDocumentTypeCode?: T;
+                          mapsToWorkflowStepId?: T;
                           id?: T;
                           blockName?: T;
                         };
@@ -1147,6 +2130,9 @@ export interface FormsSelect<T extends boolean = true> {
                       | T
                       | {
                           message?: T;
+                          fieldId?: T;
+                          mapsToDocumentTypeCode?: T;
+                          mapsToWorkflowStepId?: T;
                           id?: T;
                           blockName?: T;
                         };
@@ -1230,6 +2216,14 @@ export interface SearchSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-kv_select".
+ */
+export interface PayloadKvSelect<T extends boolean = true> {
+  key?: T;
+  data?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents_select".
  */
 export interface PayloadLockedDocumentsSelect<T extends boolean = true> {
@@ -1259,6 +2253,16 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   batch?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "collections_widget".
+ */
+export interface CollectionsWidget {
+  data?: {
+    [k: string]: unknown;
+  };
+  width: 'full';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

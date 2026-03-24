@@ -12,6 +12,7 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { lexicalToPlainText } from "@/lib/lexical-renderer";
+import type { Service } from "@/payload-types";
 
 interface ServicePageProps {
 	params: Promise<{
@@ -32,10 +33,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
 		depth: 2,
 	});
 
-	// Cast: payload-types.ts is generated from the DB schema and may lag behind
-	// the live collection definition. New fields (fee, workflow, etc.) are typed
-	// via the cast until the next `pnpm payload generate:types` run.
-	const service = result.docs[0] as any;
+	const service = result.docs[0] as Service;
 
 	if (!service) {
 		notFound();

@@ -1,6 +1,6 @@
 import type { CollectionAfterChangeHook } from "payload";
 import { v4 as uuidv4 } from "uuid";
-import type { FormSubmission } from "@/payload-types";
+import type { FormSubmission, Service } from "@/payload-types";
 
 const CASE_API_URL = process.env.CASE_API_URL ?? "http://localhost:3002";
 const WBB_SERVICE_URL = process.env.WBB_SERVICE_URL ?? "http://localhost:3003";
@@ -48,10 +48,10 @@ export const createApplication: CollectionAfterChangeHook = async ({
 				where: { form: { equals: formId } },
 				limit: 1,
 			});
-			const svc = services.docs[0] as any;
+			const svc = services.docs[0] as Service;
 			if (svc) {
 				payloadServiceId = svc.id;
-				serviceIdStr = svc.serviceId; // canonical string serviceId e.g. "MAM-001"
+				serviceIdStr = svc.serviceId;
 			}
 		} catch (error) {
 			console.error("Error finding service:", error);

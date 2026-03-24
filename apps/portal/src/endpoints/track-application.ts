@@ -1,5 +1,5 @@
 import type { Endpoint } from "payload";
-import type { Application } from "@/payload-types";
+import type { Application, Service } from "@/payload-types";
 
 const CASE_API_URL = process.env.CASE_API_URL ?? "http://localhost:3002";
 
@@ -33,7 +33,7 @@ export const trackApplicationEndpoint: Endpoint = {
 				);
 			}
 
-			const application = result.docs[0] as Application & { caseId?: string };
+			const application = result.docs[0] as Application;
 
 			// Optional email verification
 			if (email && application.applicantEmail !== email) {
@@ -46,19 +46,16 @@ export const trackApplicationEndpoint: Endpoint = {
 			// Resolve service name from populated relationship
 			let serviceName: string | undefined;
 			if (application.service) {
-				if (
-					typeof application.service === "object" &&
-					"name" in application.service
-				) {
-					serviceName = (application.service as any).name;
+				if (typeof application.service === "object") {
+					serviceName = (application.service as Service).name;
 				} else if (typeof application.service === "number") {
 					try {
 						const svc = await req.payload.findByID({
 							collection: "services",
 							id: application.service,
 							overrideAccess: true,
-						});
-						serviceName = (svc as any)?.name;
+						}) as Service;
+						serviceName = svc?.name;
 					} catch {
 						// best-effort
 					}
