@@ -72,15 +72,15 @@ export function Popular({ services }: Readonly<PopularProps>) {
 												"Service description"}
 										</p>
 										<div className="mb-4 flex items-center justify-between">
-											{service.processingTime && (
+											{service.processingTime?.rawText && (
 												<div className="flex min-w-0 items-center gap-1 text-muted-foreground text-xs">
 													<Clock className="h-3 w-3 shrink-0" />
 													<span className="max-w-[200px] truncate">
-														{service.processingTime}
+														{service.processingTime.rawText}
 													</span>
 												</div>
 											)}
-											{service.access === "online" && (
+											{service.access?.channel === "online" && (
 												<Badge
 													className="text-xs"
 													variant="outline"
