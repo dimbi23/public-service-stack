@@ -26,7 +26,6 @@ export const plugins: Plugin[] = [
 		collections: {
 			departments: {},
 			services: {},
-			forms: {},
 		},
 		tenantsArrayField: {
 			includeDefaultField: false,
