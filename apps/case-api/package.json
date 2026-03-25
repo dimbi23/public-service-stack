@@ -64,16 +64,14 @@
         ],
         "options": {
           "buildTarget": "@org/case-api:build",
-          "runBuildTargetDependencies": false,
-          "inspect": false
+          "runBuildTargetDependencies": false
         },
         "configurations": {
           "development": {
             "buildTarget": "@org/case-api:build:development"
           },
           "production": {
-            "buildTarget": "@org/case-api:build:production",
-            "inspect": false
+            "buildTarget": "@org/case-api:build:production"
           }
         }
       },
