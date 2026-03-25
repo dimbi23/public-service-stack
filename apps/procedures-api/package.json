@@ -65,8 +65,7 @@
         "options": {
           "buildTarget": "@org/procedures-api:build",
           "runBuildTargetDependencies": false,
-          "inspect": "inspect",
-          "args": ["--inspect=9231"]
+          "inspect": false
         },
         "configurations": {
           "development": {

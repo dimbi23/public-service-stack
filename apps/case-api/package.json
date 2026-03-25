@@ -65,8 +65,7 @@
         "options": {
           "buildTarget": "@org/case-api:build",
           "runBuildTargetDependencies": false,
-          "inspect": "inspect",
-          "args": ["--inspect=9230"]
+          "inspect": false
         },
         "configurations": {
           "development": {

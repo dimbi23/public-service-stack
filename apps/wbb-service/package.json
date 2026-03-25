@@ -65,8 +65,7 @@
         "options": {
           "buildTarget": "@org/wbb-service:build",
           "runBuildTargetDependencies": false,
-          "inspect": "inspect",
-          "args": ["--inspect=9232"]
+          "inspect": false
         },
         "configurations": {
           "development": {
