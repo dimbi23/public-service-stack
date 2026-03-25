@@ -26,8 +26,43 @@ export async function parseServiceCatalog(
   );
 }
 
-function toParseResult(rawRows: RawRow[]): ParseResult {
-  const catalog = normalizeCatalog(rawRows);
+/** Maps alternate column names (from various export formats) to the canonical RawRow keys. */
+const COLUMN_ALIASES: Record<string, keyof RawRow> = {
+  serviceId:        'ID',
+  service_id:       'ID',
+  id:               'ID',
+  name:             'SERVICE_NAME',
+  service_name:     'SERVICE_NAME',
+  owner_ministry:   'TENANT',
+  ministry:         'TENANT',
+  tenant:           'TENANT',
+  workflow_steps:   'STEPS',
+  steps:            'STEPS',
+  fee_model:        'COST_NOTES',
+  description:      'DESCRIPTION',
+  category:         'CATEGORY',
+  department:       'DEPARTMENT',
+  access_mode:      'ACCESS_MODE',
+  processing_time:  'PROCESSING_TIME',
+  documents:        'DOCUMENTS',
+  audience:         'AUDIENCE',
+  eligibility:      'ELIGIBILITY',
+  output_name:      'OUTPUT_NAME',
+  support_contact:  'SUPPORT_CONTACT',
+  legal_text:       'LEGAL_TEXT',
+};
+
+function normalizeRowKeys(row: Record<string, string | undefined>): RawRow {
+  const normalized: RawRow = {};
+  for (const [key, value] of Object.entries(row)) {
+    const canonical = COLUMN_ALIASES[key.toLowerCase()] ?? key;
+    normalized[canonical] = value;
+  }
+  return normalized;
+}
+
+function toParseResult(rawRows: Record<string, string | undefined>[]): ParseResult {
+  const catalog = normalizeCatalog(rawRows.map(normalizeRowKeys));
   return {
     rows: catalog.results,
     totalRows: catalog.totalRows,
@@ -37,7 +72,7 @@ function toParseResult(rawRows: RawRow[]): ParseResult {
 }
 
 function parseCSV(fileBuffer: Buffer): ParseResult {
-  const result = Papa.parse<RawRow>(fileBuffer.toString('utf-8'), {
+  const result = Papa.parse<Record<string, string>>(fileBuffer.toString('utf-8'), {
     header: true,
     skipEmptyLines: true,
     transformHeader: (h) => h.trim(),
@@ -48,6 +83,6 @@ function parseCSV(fileBuffer: Buffer): ParseResult {
 function parseExcel(fileBuffer: Buffer): ParseResult {
   const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { raw: false, defval: '' });
+  const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { raw: false, defval: '' });
   return toParseResult(rows);
 }
