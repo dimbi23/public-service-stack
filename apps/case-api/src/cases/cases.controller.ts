@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -6,8 +7,11 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
   Version,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { CaseStatus } from '@org/dto';
 import { AddDocumentDto } from './dto/add-document.dto';
 import { CompleteStepDto } from './dto/complete-step.dto';
@@ -60,10 +64,19 @@ export class CasesController {
   }
 
   // POST /v1/cases/:id/documents
+  // Accepts multipart/form-data (with file) or application/json (with storageRef)
   @Post(':id/documents')
   @Version('1')
-  addDocument(@Param('id') id: string, @Body() dto: AddDocumentDto) {
-    return this.cases.addDocument(id, dto);
+  @UseInterceptors(FileInterceptor('file'))
+  addDocument(
+    @Param('id') id: string,
+    @Body() dto: AddDocumentDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file && !dto.storageRef) {
+      throw new BadRequestException('Either upload a file or provide a storageRef');
+    }
+    return this.cases.addDocument(id, dto, file);
   }
 
   // GET /v1/cases/:id/documents

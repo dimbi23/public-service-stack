@@ -3,6 +3,8 @@ import {
   Injectable,
 } from '@nestjs/common';
 import type { CaseStatus } from '@org/dto';
+import { MailService } from '../mail/mail.service';
+import { StorageService } from '../storage/storage.service';
 import { EventsService } from '../events/events.service';
 import type { AddDocumentDto } from './dto/add-document.dto';
 import type { CompleteStepDto } from './dto/complete-step.dto';
@@ -27,6 +29,8 @@ export class CasesService {
   constructor(
     private readonly repo: CasesRepository,
     private readonly events: EventsService,
+    private readonly mail: MailService,
+    private readonly storage: StorageService,
   ) {}
 
   // ── Create ──────────────────────────────────────────────────────────────────
@@ -100,6 +104,16 @@ export class CasesService {
       });
     }
 
+    if (found.applicantId.includes('@')) {
+      void this.mail.sendStatusChanged({
+        to: found.applicantId,
+        caseId: id,
+        previousStatus: found.status,
+        newStatus: dto.status,
+        note: dto.note,
+      });
+    }
+
     return updated;
   }
 
@@ -135,14 +149,25 @@ export class CasesService {
 
   // ── Add document ────────────────────────────────────────────────────────────
 
-  async addDocument(caseId: string, dto: AddDocumentDto): Promise<Case> {
+  async addDocument(
+    caseId: string,
+    dto: AddDocumentDto,
+    file?: { buffer: Buffer; mimetype: string; originalname: string },
+  ): Promise<Case> {
     const found = await this.repo.findByIdOrThrow(caseId);
+
+    let storageRef = dto.storageRef;
+    if (file) {
+      const ext = file.originalname.split('.').pop() ?? 'bin';
+      const key = `cases/${caseId}/${dto.documentTypeCode}-${Date.now()}.${ext}`;
+      storageRef = await this.storage.upload({ key, buffer: file.buffer, mimetype: file.mimetype });
+    }
 
     const uploadedAt = new Date().toISOString();
     const updated = await this.repo.addDocument(caseId, {
       documentTypeCode: dto.documentTypeCode,
       label: dto.label,
-      storageRef: dto.storageRef,
+      storageRef,
       uploadedAt,
     });
 
@@ -152,7 +177,7 @@ export class CasesService {
       documentTypeCode: dto.documentTypeCode,
       label: dto.label,
       uploadedAt,
-      storageRef: dto.storageRef,
+      storageRef,
     });
 
     return updated;

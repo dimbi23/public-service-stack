@@ -1,4 +1,4 @@
-import { IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class AddDocumentDto {
   @IsString()
@@ -7,6 +7,8 @@ export class AddDocumentDto {
   @IsString()
   label!: string;
 
+  /** Required when uploading via JSON body; omit when sending a file via multipart */
+  @IsOptional()
   @IsString()
-  storageRef!: string;
+  storageRef?: string;
 }
