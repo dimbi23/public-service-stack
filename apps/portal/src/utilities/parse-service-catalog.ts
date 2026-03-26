@@ -37,6 +37,7 @@ const COLUMN_ALIASES: Record<string, keyof RawRow> = {
   id:               'ID',
   name:             'SERVICE_NAME',
   service_name:     'SERVICE_NAME',
+  status:           'STATUS',
   // owner_ministry already lowercase
   owner_ministry:   'TENANT',
   ministry:         'TENANT',
