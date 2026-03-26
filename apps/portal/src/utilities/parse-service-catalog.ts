@@ -26,13 +26,18 @@ export async function parseServiceCatalog(
   );
 }
 
-/** Maps alternate column names (from various export formats) to the canonical RawRow keys. */
+/**
+ * Maps alternate column names (from various export formats) to the canonical RawRow keys.
+ * All keys MUST be lowercase — normalizeRowKeys calls key.toLowerCase() before lookup.
+ */
 const COLUMN_ALIASES: Record<string, keyof RawRow> = {
-  serviceId:        'ID',
+  // serviceId (camelCase in CSV) → lowercased to "serviceid"
+  serviceid:        'ID',
   service_id:       'ID',
   id:               'ID',
   name:             'SERVICE_NAME',
   service_name:     'SERVICE_NAME',
+  // owner_ministry already lowercase
   owner_ministry:   'TENANT',
   ministry:         'TENANT',
   tenant:           'TENANT',
