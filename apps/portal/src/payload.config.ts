@@ -3,8 +3,24 @@ import { fileURLToPath } from "node:url";
 import { postgresAdapter } from "@payloadcms/db-postgres";
 import { payloadCloudPlugin } from "@payloadcms/payload-cloud";
 import { lexicalEditor } from "@payloadcms/richtext-lexical";
-import { buildConfig } from "payload";
+import { type CollectionConfig, buildConfig } from "payload";
 import sharp from "sharp";
+
+/**
+ * multiTenantPlugin mutates collection.fields in-place (unshift).
+ * Under Turbopack HMR the module cache is reused, so after a hot-reload the
+ * fields array already contains 'tenant' and the plugin adds it again.
+ * Returning a fresh array without any pre-existing 'tenant' prevents the
+ * DuplicateFieldName error in development.
+ */
+function fresh(c: CollectionConfig): CollectionConfig {
+	return {
+		...c,
+		fields: c.fields.filter(
+			(f) => !("name" in f) || (f as { name: string }).name !== "tenant",
+		),
+	};
+}
 import { Applications } from "@/collections/Applications";
 import { Categories } from "@/collections/Categories";
 import { Departments } from "@/collections/Departments";
@@ -38,8 +54,8 @@ export default buildConfig({
 		Users,
 		Media,
 		Tenants,
-		Departments,
-		Services,
+		fresh(Departments),
+		fresh(Services),
 		ExecutionMappings,
 		Categories,
 		Applications,
