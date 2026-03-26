@@ -102,43 +102,26 @@ export async function processImportServicesJob(
 				continue;
 			}
 
-			// ── Resolve category ────────────────────────────────────────────────
-			if (!svc._categoryName) {
-				const msg = "CATEGORY is required";
-				errors.push({ row: rowNum, message: msg });
-				jobQueue.addError(jobId, rowNum, msg);
-				continue;
-			}
-			const categoryId = await resolveCategory(
-				payload,
-				svc._categoryName,
-				mockReq,
-			);
-			if (!categoryId) {
-				const msg = `Failed to resolve or create category: ${svc._categoryName}`;
-				errors.push({ row: rowNum, message: msg });
-				jobQueue.addError(jobId, rowNum, msg);
-				continue;
+			// ── Resolve category (optional) ─────────────────────────────────────
+			let categoryId: string | undefined;
+			if (svc._categoryName) {
+				const resolved = await resolveCategory(payload, svc._categoryName, mockReq);
+				if (resolved) {
+					categoryId = resolved;
+				} else {
+					jobQueue.addWarning?.(jobId, rowNum, `Could not resolve category: ${svc._categoryName}`);
+				}
 			}
 
-			// ── Resolve department ──────────────────────────────────────────────
-			if (!svc._departmentName) {
-				const msg = "DEPARTMENT is required";
-				errors.push({ row: rowNum, message: msg });
-				jobQueue.addError(jobId, rowNum, msg);
-				continue;
-			}
-			const departmentId = await resolveDepartment(
-				payload,
-				svc._departmentName,
-				tenantId,
-				mockReq,
-			);
-			if (!departmentId) {
-				const msg = `Failed to resolve or create department: ${svc._departmentName}`;
-				errors.push({ row: rowNum, message: msg });
-				jobQueue.addError(jobId, rowNum, msg);
-				continue;
+			// ── Resolve department (optional) ────────────────────────────────────
+			let departmentId: string | undefined;
+			if (svc._departmentName) {
+				const resolved = await resolveDepartment(payload, svc._departmentName, tenantId, mockReq);
+				if (resolved) {
+					departmentId = resolved;
+				} else {
+					jobQueue.addWarning?.(jobId, rowNum, `Could not resolve department: ${svc._departmentName}`);
+				}
 			}
 
 			// ── Build Payload document ──────────────────────────────────────────
@@ -147,8 +130,8 @@ export async function processImportServicesJob(
 
 			const payloadDoc = {
 				...serviceData,
-				category: categoryId,
-				department: departmentId,
+				...(categoryId ? { category: categoryId } : {}),
+				...(departmentId ? { department: departmentId } : {}),
 				tenant: tenantId,
 				// Compute metrics from normalized data
 				metrics: {
