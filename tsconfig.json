@@ -25,9 +25,6 @@
       "path": "./apps/portal-e2e"
     },
     {
-      "path": "./apps/portal"
-    },
-    {
       "path": "./libs/schemas"
     },
     {
@@ -35,6 +32,9 @@
     },
     {
       "path": "./libs/events"
+    },
+    {
+      "path": "./libs/normalizer"
     }
   ]
 }

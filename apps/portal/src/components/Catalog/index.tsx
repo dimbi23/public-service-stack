@@ -90,9 +90,13 @@ export function Catalog({ services, initialCategory }: Readonly<CatalogProps>) {
 				.toLowerCase()
 				.includes(searchQuery.toLowerCase()); //||
 			//service.description.toLowerCase().includes(searchQuery.toLowerCase())
+			const categoryName =
+				service.category && typeof service.category === "object"
+					? (service.category as Category).name
+					: null;
 			const matchesCategory =
 				selectedCategory === "All Categories" ||
-				(service.category as Category).name === selectedCategory;
+				categoryName === selectedCategory;
 			const matchesOnline = !onlineOnly || service.access == "online";
 
 			return matchesSearch && matchesCategory && matchesOnline;
@@ -103,20 +107,9 @@ export function Catalog({ services, initialCategory }: Readonly<CatalogProps>) {
 				case "alphabetical":
 					return a.name.localeCompare(b.name);
 				case "duration": {
-					// Handle null/undefined processingTime values
-					// Services without processing time should be sorted to the end
-					const aTime = a.processingTime ?? "";
-					const bTime = b.processingTime ?? "";
-
-					// If both are empty, maintain order
-					if (!(aTime || bTime)) return 0;
-					// If only a is empty, sort it to the end
-					if (!aTime) return 1;
-					// If only b is empty, sort it to the end
-					if (!bTime) return -1;
-
-					// Both have values, compare them
-					return aTime.localeCompare(bTime);
+					const aDays = typeof a.processingTime === "object" ? (a.processingTime?.slaDays ?? Infinity) : Infinity;
+					const bDays = typeof b.processingTime === "object" ? (b.processingTime?.slaDays ?? Infinity) : Infinity;
+					return aDays - bDays;
 				}
 				//case 'rating':
 				//return b.rating - a.rating
@@ -358,18 +351,17 @@ export function Catalog({ services, initialCategory }: Readonly<CatalogProps>) {
 							<Card className="group cursor-pointer shadow-none transition-all duration-200 hover:shadow-lg">
 								<CardHeader className="">
 									<div className="mb-2 flex items-center justify-between">
-										<Badge
-											className="min-w-0 max-w-[200px] shrink justify-start text-xs"
-											variant="secondary"
-										>
-											<span className="block truncate">
-												{
-													(
-														service.category as Category
-													).name
-												}
-											</span>
-										</Badge>
+										{service.category &&
+											typeof service.category === "object" && (
+												<Badge
+													className="min-w-0 max-w-[200px] shrink justify-start text-xs"
+													variant="secondary"
+												>
+													<span className="block truncate">
+														{(service.category as Category).name}
+													</span>
+												</Badge>
+										)}
 									</div>
 									<CardTitle className="line-clamp-2 min-h-12 text-lg">
 										{service.name}
@@ -382,7 +374,7 @@ export function Catalog({ services, initialCategory }: Readonly<CatalogProps>) {
 												Processing Time:
 											</span>
 											<span className="ml-2 max-w-[200px] truncate text-right font-medium">
-												{service.processingTime}
+												{typeof service.processingTime === "object" ? service.processingTime?.rawText ?? "—" : service.processingTime ?? "—"}
 											</span>
 										</div>
 										<div className="flex items-center justify-between text-sm">
