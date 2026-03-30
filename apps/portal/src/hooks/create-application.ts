@@ -95,7 +95,7 @@ export const createApplication: CollectionAfterChangeHook = async ({
 						}),
 					});
 					if (caseRes.ok) {
-						const caseData = await caseRes.json() as { id: string };
+						const caseData = (await caseRes.json()) as { id: string };
 						caseId = caseData.id;
 						console.log(
 							`Case created: ${caseId} for submission ${submissionId}`
@@ -109,6 +109,14 @@ export const createApplication: CollectionAfterChangeHook = async ({
 					console.error("Error calling case-api:", err);
 				}
 			}
+
+			const timeline = [
+				{
+					status: "pending",
+					timestamp: new Date().toISOString(),
+					note: "Application received",
+				},
+			];
 
 			// ── 2. Trigger workflow in wbb-service ────────────────────────────
 			if (caseId && serviceIdStr) {
@@ -127,19 +135,35 @@ export const createApplication: CollectionAfterChangeHook = async ({
 						}
 					);
 					if (wbbRes.ok) {
-						const wbbData = await wbbRes.json() as { webhookPath: string };
+						const wbbData = (await wbbRes.json()) as {
+							webhookPath: string;
+						};
 						console.log(
 							`Workflow triggered via webhook "${wbbData.webhookPath}" for case ${caseId}`
 						);
+						timeline.push({
+							status: "pending",
+							timestamp: new Date().toISOString(),
+							note: `Workflow automated trigger started via ${wbbData.webhookPath}`,
+						});
 					} else {
-						// Non-fatal: workflow trigger may fail if no registration exists yet
 						const body = await wbbRes.text();
 						console.warn(
 							`wbb-service responded ${wbbRes.status} for case ${caseId}: ${body}`
 						);
+						timeline.push({
+							status: "pending",
+							timestamp: new Date().toISOString(),
+							note: `Workflow trigger skipped: ${body.slice(0, 100)}`,
+						});
 					}
 				} catch (err) {
 					console.warn("Error calling wbb-service (non-fatal):", err);
+					timeline.push({
+						status: "pending",
+						timestamp: new Date().toISOString(),
+						note: `Workflow trigger failed: ${err instanceof Error ? err.message : String(err)}`,
+					});
 				}
 			}
 
@@ -153,14 +177,10 @@ export const createApplication: CollectionAfterChangeHook = async ({
 					submission: submissionId,
 					service: payloadServiceId,
 					applicantEmail,
-					timeline: [
-						{
-							status: "pending",
-							timestamp: new Date().toISOString(),
-							note: "Application received",
-						},
-					],
+					timeline,
 				},
+				overrideAccess: true,
+				draft: false,
 			});
 
 			console.log(
@@ -171,11 +191,9 @@ export const createApplication: CollectionAfterChangeHook = async ({
 				`Error creating application for submission ${submissionId}:`,
 				error
 			);
-			if (error instanceof Error) {
-				console.error("Error message:", error.message);
-			}
 		}
 	})();
 
 	return doc;
 };
+

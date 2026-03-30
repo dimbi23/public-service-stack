@@ -42,7 +42,7 @@ export const applicationBySubmissionEndpoint: Endpoint = {
 
 			return Response.json({
 				trackingId: application.trackingId,
-				status: application.status,
+				caseId: application.caseId,
 			});
 		} catch (error) {
 			console.error(

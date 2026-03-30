@@ -167,6 +167,27 @@ export type CaseStatus =
   | 'rejected'
   | 'cancelled';
 
+/** Display vocabulary used in citizen-facing UIs (portal). */
+export type CaseStatusDisplay =
+  | 'pending'
+  | 'processing'
+  | 'info_required'
+  | 'approved'
+  | 'rejected';
+
+/**
+ * Maps canonical case-api statuses to citizen-facing display labels.
+ * Use this instead of maintaining separate status enums in each consumer.
+ */
+export const CASE_STATUS_TO_DISPLAY: Record<CaseStatus, CaseStatusDisplay> = {
+  submitted:          'pending',
+  under_review:       'processing',
+  pending_documents:  'info_required',
+  approved:           'approved',
+  rejected:           'rejected',
+  cancelled:          'rejected',
+};
+
 export interface CreateCaseDto {
   serviceId: string;
   applicantId: string;

@@ -12,4 +12,4 @@ async function bootstrap() {
   Logger.log(`Procedures API running on: http://localhost:${port}`);
 }
 
-bootstrap();
+void bootstrap();

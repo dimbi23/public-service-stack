@@ -20,7 +20,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@payload-config": ["./src/payload.config.ts"]
+      "@payload-config": ["./src/payload.config.ts"],
+      "@org/dto": ["../../libs/dto/src/index.ts"]
     },
     "target": "ES2022",
     "strictNullChecks": true

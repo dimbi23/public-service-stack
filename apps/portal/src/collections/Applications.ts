@@ -45,6 +45,11 @@ export const Applications: CollectionConfig = {
 				{ label: "Info Required", value: "info_required" },
 			],
 			required: true,
+			admin: {
+				readOnly: true,
+				description:
+					"Display cache only. The single source of truth for status is case-api.",
+			},
 		},
 		{
 			name: "submission",
@@ -87,25 +92,5 @@ export const Applications: CollectionConfig = {
 			],
 		},
 	],
-	hooks: {
-		beforeChange: [
-			({ data, originalDoc, operation }) => {
-				// Auto-update timeline on status change
-				if (
-					operation === "update" &&
-					originalDoc.status !== data.status
-				) {
-					const timeline =
-						data.timeline || originalDoc.timeline || [];
-					timeline.push({
-						status: data.status,
-						timestamp: new Date().toISOString(),
-						note: `Status changed to ${data.status}`,
-					});
-					data.timeline = timeline;
-				}
-				return data;
-			},
-		],
-	},
+	hooks: {},
 };

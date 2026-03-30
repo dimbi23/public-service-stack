@@ -1,5 +1,6 @@
 import type { Endpoint } from "payload";
 import type { Application, Service } from "@/payload-types";
+import { CASE_STATUS_TO_DISPLAY, type CaseStatus } from "@org/dto";
 
 const CASE_API_URL = process.env.CASE_API_URL ?? "http://localhost:3002";
 
@@ -72,23 +73,34 @@ export const trackApplicationEndpoint: Endpoint = {
 						{ headers: { Accept: "application/json" } }
 					);
 					if (caseRes.ok) {
-						const caseData = await caseRes.json() as {
+						const caseData = (await caseRes.json()) as {
 							status: string;
-							steps?: unknown[];
+							stepHistory?: unknown[];
 						};
 						liveStatus = caseData.status;
-						steps = caseData.steps;
+						steps = caseData.stepHistory;
 					}
 				} catch {
 					// case-api may be temporarily unavailable — fall back to Payload data
 				}
 			}
 
+			// Prefer live status from case-api; fall back to Payload status
+			let status: string = application.status;
+			let statusSource: "live" | "cached" = "cached";
+
+			if (liveStatus) {
+				status =
+					CASE_STATUS_TO_DISPLAY[liveStatus as CaseStatus] ??
+					liveStatus;
+				statusSource = "live";
+			}
+
 			return Response.json({
 				trackingId: application.trackingId,
 				caseId: application.caseId,
-				// Prefer live status from case-api; fall back to Payload status
-				status: liveStatus ?? application.status,
+				status,
+				statusSource,
 				timeline: application.timeline,
 				steps,
 				serviceName,

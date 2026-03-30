@@ -76,7 +76,6 @@ export default buildConfig({
 		trackApplicationEndpoint,
 		trackServiceViewEndpoint,
 		applicationBySubmissionEndpoint,
-		updateApplicationStatusEndpoint,
 		uploadServicesEndpoint,
 		serviceImportStatusEndpoint,
 	],
