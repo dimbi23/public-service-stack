@@ -78,7 +78,7 @@ export function Catalog({ services, initialCategory }: Readonly<CatalogProps>) {
 					matchingService &&
 					typeof matchingService.category === "object"
 				) {
-					setSelectedCategory(matchingService.category.name);
+					setSelectedCategory(matchingService.category?.name ?? "");
 				}
 			}
 		}
@@ -97,7 +97,7 @@ export function Catalog({ services, initialCategory }: Readonly<CatalogProps>) {
 			const matchesCategory =
 				selectedCategory === "All Categories" ||
 				categoryName === selectedCategory;
-			const matchesOnline = !onlineOnly || service.access == "online";
+			const matchesOnline = !onlineOnly || service.access?.channel === "online" || service.access?.channel === "hybrid";
 
 			return matchesSearch && matchesCategory && matchesOnline;
 		});
@@ -382,13 +382,9 @@ export function Catalog({ services, initialCategory }: Readonly<CatalogProps>) {
 												Fee:
 											</span>
 											<span className="font-medium">
-												{service.costs &&
-												service.costs.length > 0
-													? service.costs[
-															service.costs
-																.length - 1
-														].cost
-													: "Free"}
+												{service.fee?.summary?.defaultAmount != null
+													? `${service.fee.summary.defaultAmount.toLocaleString()} ${service.fee.currency ?? "MGA"}`
+													: "Gratuit"}
 											</span>
 										</div>
 										<div className="flex items-center justify-between text-sm">
@@ -398,12 +394,12 @@ export function Catalog({ services, initialCategory }: Readonly<CatalogProps>) {
 											<Badge
 												className="text-xs"
 												variant={
-													service.access === "online"
+													service.access?.channel === "online" || service.access?.channel === "hybrid"
 														? "default"
 														: "secondary"
 												}
 											>
-												{service.access === "online"
+												{service.access?.channel === "online" || service.access?.channel === "hybrid"
 													? "Online"
 													: "In-Person"}
 											</Badge>
@@ -424,7 +420,7 @@ export function Catalog({ services, initialCategory }: Readonly<CatalogProps>) {
 														variant="outline"
 													>
 														<span className="block truncate">
-															{req.documentName}
+															{req.label}
 														</span>
 													</Badge>
 												))}
@@ -447,7 +443,7 @@ export function Catalog({ services, initialCategory }: Readonly<CatalogProps>) {
 										className="group w-full"
 										variant="secondary"
 									>
-										{service.access === "online"
+										{service.access?.channel === "online" || service.access?.channel === "hybrid"
 											? "View Details"
 											: "Learn More"}
 									</Button>

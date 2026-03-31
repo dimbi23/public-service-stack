@@ -16,6 +16,7 @@ import {
 } from "@/blocks/spec-form-fields";
 import { formSchemaEndpoint } from "@/endpoints/form-schema";
 import { beforeFormValidateHook } from "@/hooks/before-form-validate";
+import { afterFormSubmissionChange } from "@/hooks/after-form-submission-change";
 import { createApplication } from "@/hooks/create-application";
 import { handleSubmission } from "@/hooks/handle-submission";
 import type { Config } from "@/payload-types";
@@ -192,7 +193,7 @@ export const plugins: Plugin[] = [
 		formSubmissionOverrides: {
 			hooks: {
 				beforeChange: [handleSubmission],
-				afterChange: [createApplication],
+				afterChange: [createApplication, afterFormSubmissionChange],
 			},
 		},
 	}),

@@ -1,6 +1,6 @@
 {
   "name": "Case Submitted — Default Handler",
-  "active": false,
+  "active": true,
   "nodes": [
     {
       "id": "node-webhook",
