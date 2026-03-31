@@ -105,7 +105,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
 		description: lexicalToPlainText(service.description),
 		category:
 			typeof service.category === "object"
-				? service.category?.name
+				? (service.category?.name ?? "Général")
 				: "Général",
 		duration: durationDisplay,
 		fee: feeDisplay,
@@ -116,6 +116,14 @@ export default async function ServicePage({ params }: ServicePageProps) {
 		process,
 		fees,
 	};
+
+	// Track page view (fire-and-forget, non-blocking)
+	const serverUrl = globalThis.process.env['NEXT_PUBLIC_SERVER_URL'] ?? 'http://localhost:3000';
+	fetch(`${serverUrl}/api/track-service-view`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ serviceId: service.serviceId }),
+	}).catch(() => undefined);
 
 	return (
 		<div className="min-h-screen">
@@ -145,7 +153,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
 			<Related
 				category={
 					typeof service.category === "object"
-						? service.category?.name
+						? (service.category?.name ?? "Général")
 						: "Général"
 				}
 				currentServiceId={String(service.id)}

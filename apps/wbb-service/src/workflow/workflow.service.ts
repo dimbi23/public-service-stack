@@ -35,16 +35,9 @@ export class WorkflowService {
 
   // ── Trigger ───────────────────────────────────────────────────────────────
 
-  /**
-   * Called when a case is submitted.
-   * 1. Resolve which n8n workflow handles this service
-   * 2. Fetch the ExecutionMapping from procedures-api (internal profile)
-   * 3. Trigger the n8n workflow via its webhook path
-   */
   async trigger(dto: TriggerWorkflowDto): Promise<{ triggered: boolean; webhookPath: string }> {
-    const registration = this.registry.resolveOrThrow(dto.serviceId);
+    const registration = await this.registry.resolveOrThrow(dto.serviceId);
 
-    // Fetch execution mapping for context (best-effort — don't block if unavailable)
     let executionProcess: unknown;
     try {
       const procedure = await this.procedures.getProcedureInternal(dto.serviceId);
@@ -75,35 +68,26 @@ export class WorkflowService {
 
   // ── Callback ──────────────────────────────────────────────────────────────
 
-  /**
-   * Called by n8n when a step completes.
-   * 1. Mark the step complete on case-api
-   * 2. Derive the new case status from the step outcome
-   * 3. If nextStepId is provided, advance to the next step automatically
-   */
   async handleCallback(dto: WorkflowCallbackDto): Promise<void> {
     this.logger.log(
       `Callback received for case ${dto.caseId} — step ${dto.stepId} → ${dto.outcome}`,
     );
 
-    // Mark step complete
-    await this.cases.completeStep(
-      dto.caseId,
-      dto.stepId,
-      dto.outcome,
-      dto.actorId,
-      dto.note,
-    );
+    await this.cases.completeStep(dto.caseId, dto.stepId, dto.outcome, dto.actorId, dto.note);
 
-    // Derive status transition from outcome
     const newStatus = this.outcomeToStatus(dto.outcome);
     if (newStatus) {
       try {
-        await this.cases.updateStatus(dto.caseId, { status: newStatus, note: dto.note, actorId: dto.actorId });
+        await this.cases.updateStatus(dto.caseId, {
+          status: newStatus,
+          note: dto.note,
+          actorId: dto.actorId,
+        });
         this.logger.log(`Case ${dto.caseId} transitioned to ${newStatus}`);
       } catch (err) {
-        // Transition may be invalid (e.g. terminal state) — log and continue
-        this.logger.warn(`Status transition failed for case ${dto.caseId}: ${(err as Error).message}`);
+        this.logger.warn(
+          `Status transition failed for case ${dto.caseId}: ${(err as Error).message}`,
+        );
       }
     }
   }
@@ -128,7 +112,7 @@ export class WorkflowService {
       case 'approved':  return 'approved';
       case 'rejected':  return 'rejected';
       case 'forwarded': return 'under_review';
-      case 'completed': return null; // intermediate step — no status change
+      case 'completed': return null;
     }
   }
 }

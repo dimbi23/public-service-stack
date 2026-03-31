@@ -1,15 +1,13 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
 
-/**
- * WorkflowRegistration — maps a procedure (serviceId pattern) to an n8n
- * workflow via its webhook path.
- *
- * webhookPath is the path configured in the n8n Webhook trigger node,
- * e.g. "case-submitted" → POST http://n8n:5678/webhook/case-submitted
- *
- * TODO: persist in PostgreSQL (or in ExecutionMappings collection) so
- *       registrations survive restarts.
- */
 export interface WorkflowRegistration {
   /** Exact serviceId or glob pattern, e.g. "MAM-*" */
   serviceIdPattern: string;
@@ -22,55 +20,76 @@ export interface WorkflowRegistration {
   registeredAt: string;
 }
 
-@Injectable()
-export class WorkflowRegistry {
-  private readonly logger = new Logger(WorkflowRegistry.name);
-  private readonly registrations = new Map<string, WorkflowRegistration>();
+const REDIS_KEY = 'wbb:workflow-registrations';
 
-  register(reg: Omit<WorkflowRegistration, 'registeredAt'>): WorkflowRegistration {
+@Injectable()
+export class WorkflowRegistry implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(WorkflowRegistry.name);
+  private redis: Redis;
+
+  constructor(private readonly config: ConfigService) {}
+
+  async onModuleInit() {
+    const url = this.config.get<string>('REDIS_URL', 'redis://localhost:6379');
+    this.redis = new Redis(url, { lazyConnect: true });
+    this.redis.on('error', (err) => {
+      this.logger.error(`Redis error: ${err.message}`);
+    });
+    await this.redis.connect().catch((err) => {
+      this.logger.warn(`Redis connect failed (registry will be in-memory only): ${err.message}`);
+    });
+    const count = await this.redis.hlen(REDIS_KEY).catch(() => 0);
+    this.logger.log(`WorkflowRegistry loaded — ${count} registration(s) from Redis`);
+  }
+
+  async onModuleDestroy() {
+    await this.redis?.quit();
+  }
+
+  async register(reg: Omit<WorkflowRegistration, 'registeredAt'>): Promise<WorkflowRegistration> {
     const full: WorkflowRegistration = { ...reg, registeredAt: new Date().toISOString() };
-    this.registrations.set(reg.serviceIdPattern, full);
-    this.logger.log(`Registered workflow "${reg.workflowName ?? reg.webhookPath}" for pattern "${reg.serviceIdPattern}"`);
+    await this.redis.hset(REDIS_KEY, reg.serviceIdPattern, JSON.stringify(full));
+    this.logger.log(
+      `Registered workflow "${reg.workflowName ?? reg.webhookPath}" for pattern "${reg.serviceIdPattern}"`,
+    );
     return full;
   }
 
-  unregister(serviceIdPattern: string): void {
-    this.registrations.delete(serviceIdPattern);
+  async unregister(serviceIdPattern: string): Promise<void> {
+    await this.redis.hdel(REDIS_KEY, serviceIdPattern);
   }
 
-  /**
-   * Finds the best-matching registration for a given serviceId.
-   * Priority: exact match > wildcard match (prefix with *)
-   */
-  resolve(serviceId: string): WorkflowRegistration | undefined {
+  async resolve(serviceId: string): Promise<WorkflowRegistration | undefined> {
+    const all = await this.redis.hgetall(REDIS_KEY).catch(() => ({} as Record<string, string>));
+
     // Exact match first
-    if (this.registrations.has(serviceId)) {
-      return this.registrations.get(serviceId);
+    if (all[serviceId]) {
+      return JSON.parse(all[serviceId]) as WorkflowRegistration;
     }
 
-    // Wildcard — pattern "MAM-*" matches "MAM-CENAM-B-P1"
-    for (const [pattern, reg] of this.registrations.entries()) {
-      if (pattern.endsWith('*')) {
-        const prefix = pattern.slice(0, -1);
-        if (serviceId.startsWith(prefix)) return reg;
+    // Wildcard — "MAM-*" matches "MAM-CENAM-B-P1"
+    for (const [pattern, raw] of Object.entries(all)) {
+      if (pattern.endsWith('*') && serviceId.startsWith(pattern.slice(0, -1))) {
+        return JSON.parse(raw) as WorkflowRegistration;
       }
     }
 
     return undefined;
   }
 
-  resolveOrThrow(serviceId: string): WorkflowRegistration {
-    const reg = this.resolve(serviceId);
+  async resolveOrThrow(serviceId: string): Promise<WorkflowRegistration> {
+    const reg = await this.resolve(serviceId);
     if (!reg) {
       throw new NotFoundException(
         `No workflow registered for serviceId "${serviceId}". ` +
-        `Register one via POST /v1/workflow/register`,
+          `Register one via POST /v1/workflow/register`,
       );
     }
     return reg;
   }
 
-  listAll(): WorkflowRegistration[] {
-    return Array.from(this.registrations.values());
+  async listAll(): Promise<WorkflowRegistration[]> {
+    const all = await this.redis.hgetall(REDIS_KEY).catch(() => ({} as Record<string, string>));
+    return Object.values(all).map((raw) => JSON.parse(raw) as WorkflowRegistration);
   }
 }

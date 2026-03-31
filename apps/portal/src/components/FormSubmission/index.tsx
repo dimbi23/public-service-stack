@@ -172,7 +172,7 @@ export function FormSubmission({ form, serviceSlug }: FormSubmissionProps) {
 									: ""
 							}
 							required={
-								"required" in field ? field.required : false
+								"required" in field ? (field.required ?? false) : false
 							}
 							type="text"
 							value={typeof value === "string" ? value : ""}
@@ -207,7 +207,7 @@ export function FormSubmission({ form, serviceSlug }: FormSubmissionProps) {
 									: ""
 							}
 							required={
-								"required" in field ? field.required : false
+								"required" in field ? (field.required ?? false) : false
 							}
 							type="email"
 							value={typeof value === "string" ? value : ""}
@@ -247,7 +247,7 @@ export function FormSubmission({ form, serviceSlug }: FormSubmissionProps) {
 									: ""
 							}
 							required={
-								"required" in field ? field.required : false
+								"required" in field ? (field.required ?? false) : false
 							}
 							value={typeof value === "string" ? value : ""}
 						/>
@@ -273,7 +273,7 @@ export function FormSubmission({ form, serviceSlug }: FormSubmissionProps) {
 							onValueChange={(val) =>
 								handleChange(fieldName, val, "select")
 							}
-							required={field.required}
+							required={field.required ?? false}
 							value={typeof value === "string" ? value : ""}
 						>
 							<SelectTrigger id={fieldName}>
@@ -362,7 +362,7 @@ export function FormSubmission({ form, serviceSlug }: FormSubmissionProps) {
 									: ""
 							}
 							required={
-								"required" in field ? field.required : false
+								"required" in field ? (field.required ?? false) : false
 							}
 							type="number"
 							value={typeof value === "string" ? value : ""}

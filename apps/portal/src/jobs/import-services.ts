@@ -103,24 +103,24 @@ export async function processImportServicesJob(
 			}
 
 			// ── Resolve category (optional) ─────────────────────────────────────
-			let categoryId: string | undefined;
+			let categoryId: number | undefined;
 			if (svc._categoryName) {
 				const resolved = await resolveCategory(payload, svc._categoryName, mockReq);
 				if (resolved) {
 					categoryId = resolved;
 				} else {
-					jobQueue.addWarning?.(jobId, rowNum, `Could not resolve category: ${svc._categoryName}`);
+					console.warn(`Row ${rowNum}: Could not resolve category: ${svc._categoryName}`);
 				}
 			}
 
 			// ── Resolve department (optional) ────────────────────────────────────
-			let departmentId: string | undefined;
+			let departmentId: number | undefined;
 			if (svc._departmentName) {
 				const resolved = await resolveDepartment(payload, svc._departmentName, tenantId, mockReq);
 				if (resolved) {
 					departmentId = resolved;
 				} else {
-					jobQueue.addWarning?.(jobId, rowNum, `Could not resolve department: ${svc._departmentName}`);
+					console.warn(`Row ${rowNum}: Could not resolve department: ${svc._departmentName}`);
 				}
 			}
 

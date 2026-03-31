@@ -47,6 +47,11 @@ Thumbs.db
 .claude/settings.local.json
 .nx/polygraph
 
+# Environment files
+.env
+apps/*/.env
+!apps/*/.env.example
+
 # Next.js
 .next
 out

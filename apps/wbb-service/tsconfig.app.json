@@ -13,6 +13,9 @@
   "exclude": [],
   "references": [
     {
+      "path": "../../libs/events/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/dto/tsconfig.lib.json"
     }
   ]
