@@ -6,6 +6,11 @@
     "implicitDependencies": [
       "@org/wbb-service"
     ],
+    "tags": [
+      "type:app",
+      "type:e2e",
+      "scope:testing"
+    ],
     "targets": {
       "e2e": {
         "executor": "@nx/jest:jest",

@@ -5,6 +5,11 @@
   "nx": {
     "implicitDependencies": [
       "@org/portal"
+    ],
+    "tags": [
+      "type:app",
+      "type:e2e",
+      "scope:testing"
     ]
   }
 }
