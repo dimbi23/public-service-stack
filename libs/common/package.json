@@ -42,5 +42,8 @@
     "@nestjs/config": "^4.0.0",
     "ioredis": "^5.4.2",
     "@swc/helpers": "~0.5.18"
+  },
+  "devDependencies": {
+    "jsonc-eslint-parser": "^2.4.0"
   }
 }
