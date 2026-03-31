@@ -1,6 +1,6 @@
 /**
  * Service import job processor using BullMQ
- * 
+ *
  * This module provides:
  * - The job processor function for BullMQ worker
  * - A helper to add jobs to the queue
@@ -9,19 +9,22 @@
 
 import { Queue, Job } from 'bullmq';
 import { v4 as uuidv4 } from 'uuid';
-import { parseServiceCatalog, type ParseResult } from "@/utilities/parse-service-catalog";
-import { resolveCategory } from "@/utilities/resolve-category";
-import { resolveDepartment } from "@/utilities/resolve-department";
-import { resolveTenant } from "@/utilities/resolve-tenant";
-import { 
-  importQueue, 
-  createWorker, 
-  JobData, 
-  JobResult, 
+import {
+  parseServiceCatalog,
+  type ParseResult,
+} from '@/utilities/parse-service-catalog';
+import { resolveCategory } from '@/utilities/resolve-category';
+import { resolveDepartment } from '@/utilities/resolve-department';
+import { resolveTenant } from '@/utilities/resolve-tenant';
+import {
+  importQueue,
+  createWorker,
+  JobData,
+  JobResult,
   JobProgress,
   getJobState,
   jobQueue as legacyJobQueue,
-} from "./bull-queue";
+} from './bull-queue';
 import type { Payload } from 'payload';
 
 // Re-export types
@@ -29,9 +32,9 @@ export type { JobData, JobResult, JobProgress };
 export { importQueue, getJobState, createWorker };
 
 export interface ImportServicesJobData {
-	fileBuffer: Buffer;
-	fileName: string;
-	userId?: number;
+  fileBuffer: Buffer;
+  fileName: string;
+  userId?: number;
 }
 
 // ── Job Processor ────────────────────────────────────────────────────────────
@@ -46,9 +49,9 @@ export async function processImportJob(
 ): Promise<JobResult> {
   const { fileBuffer: base64Buffer, fileName, userId } = bullJob.data;
   const fileBuffer = Buffer.from(base64Buffer, 'base64');
-  
+
   // Decode base64 back to buffer
-  
+
   // Initialize progress tracking
   const progress: JobProgress = {
     completed: 0,
@@ -61,14 +64,14 @@ export async function processImportJob(
   let superAdminUser: any = null;
   try {
     const result = await payload.find({
-      collection: "users",
-      where: { roles: { contains: "admin" } },
+      collection: 'users',
+      where: { roles: { contains: 'admin' } },
       limit: 1,
       overrideAccess: true,
     });
     if (result.docs.length > 0) superAdminUser = result.docs[0];
   } catch (err) {
-    console.error("Error finding super-admin user:", err);
+    console.error('Error finding super-admin user:', err);
   }
 
   // Fallback tenant from the uploading user
@@ -76,19 +79,19 @@ export async function processImportJob(
   if (userId) {
     try {
       const user = await payload.findByID({
-        collection: "users",
+        collection: 'users',
         id: userId,
         overrideAccess: true,
       });
       const ids: number[] = (user?.tenants ?? [])
-        .filter((t: any) => t.roles?.includes("tenant-admin"))
+        .filter((t: any) => t.roles?.includes('tenant-admin'))
         .map((t: any) =>
-          typeof t.tenant === "object" ? t.tenant.id : t.tenant,
+          typeof t.tenant === 'object' ? t.tenant.id : t.tenant
         )
         .filter(Boolean);
       fallbackTenantId = ids[0];
     } catch (err) {
-      console.error("Error fetching user for import job:", err);
+      console.error('Error fetching user for import job:', err);
     }
   }
 
@@ -102,7 +105,7 @@ export async function processImportJob(
 
       // Fatal parse / normalisation errors — skip row
       if (row.errors.length > 0) {
-        const msg = row.errors.join("; ");
+        const msg = row.errors.join('; ');
         progress.errors.push({ row: rowNum, message: msg });
         progress.failed += 1;
         progress.completed += 1;
@@ -121,20 +124,20 @@ export async function processImportJob(
         const resolved = await resolveTenant(
           payload,
           svc.owner.ministry,
-          mockReq,
+          mockReq
         );
         if (resolved) {
           tenantId = resolved;
         } else {
           console.warn(
-            `Row ${rowNum}: tenant "${svc.owner.ministry}" not resolved, falling back to user tenant`,
+            `Row ${rowNum}: tenant "${svc.owner.ministry}" not resolved, falling back to user tenant`
           );
         }
       }
 
       if (!tenantId) {
         const msg =
-          "Tenant (ministry) is required — ensure TENANT column is set or user has a tenant assigned";
+          'Tenant (ministry) is required — ensure TENANT column is set or user has a tenant assigned';
         progress.errors.push({ row: rowNum, message: msg });
         progress.failed += 1;
         progress.completed += 1;
@@ -145,22 +148,35 @@ export async function processImportJob(
       // ── Resolve category (optional) ─────────────────────────────────────
       let categoryId: number | undefined;
       if (svc._categoryName) {
-        const resolved = await resolveCategory(payload, svc._categoryName, mockReq);
+        const resolved = await resolveCategory(
+          payload,
+          svc._categoryName,
+          mockReq
+        );
         if (resolved) {
           categoryId = resolved;
         } else {
-          console.warn(`Row ${rowNum}: Could not resolve category: ${svc._categoryName}`);
+          console.warn(
+            `Row ${rowNum}: Could not resolve category: ${svc._categoryName}`
+          );
         }
       }
 
       // ── Resolve department (optional) ────────────────────────────────────
       let departmentId: number | undefined;
       if (svc._departmentName) {
-        const resolved = await resolveDepartment(payload, svc._departmentName, tenantId, mockReq);
+        const resolved = await resolveDepartment(
+          payload,
+          svc._departmentName,
+          tenantId,
+          mockReq
+        );
         if (resolved) {
           departmentId = resolved;
         } else {
-          console.warn(`Row ${rowNum}: Could not resolve department: ${svc._departmentName}`);
+          console.warn(
+            `Row ${rowNum}: Could not resolve department: ${svc._departmentName}`
+          );
         }
       }
 
@@ -177,16 +193,16 @@ export async function processImportJob(
           manualRequiredShare:
             svc.workflow.steps.length > 0
               ? svc.workflow.steps.filter(
-                  (s) => s.confidence === "manual_required",
+                  (s) => s.confidence === 'manual_required'
                 ).length / svc.workflow.steps.length
               : 1,
         },
-      };
+      } as Record<string, unknown>;
 
       // ── Upsert by serviceId ─────────────────────────────────────────────
       try {
         const existing = await payload.find({
-          collection: "services",
+          collection: 'services',
           where: { serviceId: { equals: svc.serviceId } },
           limit: 1,
           overrideAccess: true,
@@ -194,15 +210,15 @@ export async function processImportJob(
 
         if (existing.docs.length > 0) {
           await payload.update({
-            collection: "services",
+            collection: 'services',
             id: existing.docs[0].id,
-            data: payloadDoc,
+            data: payloadDoc as any,
             overrideAccess: true,
           });
         } else {
           await payload.create({
-            collection: "services",
-            data: payloadDoc,
+            collection: 'services',
+            data: payloadDoc as any,
             overrideAccess: true,
           });
         }
@@ -236,21 +252,23 @@ export async function processImportJob(
 
 async function upsertExecutionMapping(
   payload: Payload,
-  svc: import("@org/normalizer").NormalizedService
+  svc: import('@org/normalizer').NormalizedService
 ): Promise<void> {
+  const reviewStatus: 'approved' | 'review_required' | 'manual_required' =
+    svc.workflow.reviewStatus === 'approved_auto'
+      ? 'approved'
+      : svc.workflow.reviewStatus === 'review_required'
+      ? 'review_required'
+      : 'manual_required';
+
   const mappingData = {
     serviceId: svc.serviceId,
     normalizationConfidence: svc.workflow.normalizationConfidence,
-    reviewStatus:
-      svc.workflow.reviewStatus === "approved_auto"
-        ? "approved"
-        : svc.workflow.reviewStatus === "review_required"
-          ? "review_required"
-          : "manual_required",
+    reviewStatus,
     process: {
       processId: `proc_${svc.slug}`,
-      version: "1.0.0",
-      actor: svc.workflow.steps[0]?.actor ?? "unknown",
+      version: '1.0.0',
+      actor: svc.workflow.steps[0]?.actor ?? 'unknown',
       channel: svc.access.channel,
       estimatedDurationDays: svc.processingTime.slaDays,
       steps: svc.workflow.steps.map((step) => ({
@@ -262,14 +280,14 @@ async function upsertExecutionMapping(
         channel: step.channel,
         requiresPayment: step.requiresPayment,
         slaDays: step.slaDays,
-        automatable: step.stepType === "payment" ? false : undefined,
+        automatable: step.stepType === 'payment' ? false : undefined,
         confidence: step.confidence,
       })),
     },
-  };
+  } as Record<string, unknown>;
 
   const serviceDoc = await payload.find({
-    collection: "services",
+    collection: 'services',
     where: { serviceId: { equals: svc.serviceId } },
     limit: 1,
     overrideAccess: true,
@@ -280,7 +298,7 @@ async function upsertExecutionMapping(
   }
 
   const existing = await payload.find({
-    collection: "execution-mappings",
+    collection: 'execution-mappings',
     where: { serviceId: { equals: svc.serviceId } },
     limit: 1,
     overrideAccess: true,
@@ -288,15 +306,15 @@ async function upsertExecutionMapping(
 
   if (existing.docs.length > 0) {
     await payload.update({
-      collection: "execution-mappings",
+      collection: 'execution-mappings',
       id: existing.docs[0].id,
-      data: mappingData,
+      data: mappingData as any,
       overrideAccess: true,
     });
   } else {
     await payload.create({
-      collection: "execution-mappings",
-      data: mappingData,
+      collection: 'execution-mappings',
+      data: mappingData as any,
       overrideAccess: true,
     });
   }
@@ -306,7 +324,7 @@ async function upsertExecutionMapping(
 
 /**
  * Add a job to the queue
- * 
+ *
  * This replaces the old `startImportServicesJob` pattern.
  * The job is now processed by BullMQ workers instead of setImmediate.
  */
@@ -315,7 +333,7 @@ export async function enqueueImportJob(
   data: ImportServicesJobData
 ): Promise<{ jobId: string; status: string }> {
   const jobId = uuidv4();
-  
+
   // Convert buffer to base64 for serialization
   const jobData: JobData = {
     fileBuffer: data.fileBuffer.toString('base64'),
@@ -324,14 +342,10 @@ export async function enqueueImportJob(
   };
 
   // Add job to BullMQ queue
-  const bullJob = await importQueue.add(
-    'import-services',
-    jobData,
-    {
-      jobId,
-      priority: 1,
-    }
-  );
+  const bullJob = await importQueue.add('import-services', jobData, {
+    jobId,
+    priority: 1,
+  });
 
   // Also create in legacy queue for backward compatibility
   // This allows the status endpoint to work during transition
@@ -359,12 +373,8 @@ export async function startImportServicesJob(
     userId: data.userId,
   };
 
-  await importQueue.add(
-    'import-services',
-    jobData,
-    {
-      jobId,
-      priority: 1,
-    }
-  );
+  await importQueue.add('import-services', jobData, {
+    jobId,
+    priority: 1,
+  });
 }

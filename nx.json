@@ -2,8 +2,30 @@
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "namedInputs": {
     "default": ["{projectRoot}/**/*", "sharedGlobals"],
-    "production": ["default"],
+    "production": [
+      "default",
+      "!{projectRoot}/**/*.spec.*",
+      "!{projectRoot}/**/*.test.*",
+      "!{projectRoot}/**/*.e2e.*",
+      "!{projectRoot}/**/*.stories.*",
+      "!{projectRoot}/**/__tests__/**",
+      "!{projectRoot}/**/__mocks__/**",
+      "!{projectRoot}/**/*.md",
+      "!{projectRoot}/**/test-output/**",
+      "!{projectRoot}/**/coverage/**"
+    ],
     "sharedGlobals": []
+  },
+  "targetDefaults": {
+    "build": {
+      "inputs": ["production", "^production"]
+    },
+    "typecheck": {
+      "inputs": ["default", "^production"]
+    },
+    "test": {
+      "inputs": ["default", "^production"]
+    }
   },
   "plugins": [
     {

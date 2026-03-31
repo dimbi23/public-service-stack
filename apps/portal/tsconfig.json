@@ -30,6 +30,9 @@
   "exclude": ["node_modules"],
   "references": [
     {
+      "path": "../../libs/dto"
+    },
+    {
       "path": "../../libs/normalizer"
     }
   ]

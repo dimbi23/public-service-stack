@@ -20,8 +20,8 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@org/normalizer": "workspace:*",
     "@elysiajs/eden": "^1.4.5",
+    "@org/normalizer": "workspace:*",
     "@payloadcms/db-mongodb": "3.80.0",
     "@payloadcms/db-postgres": "3.80.0",
     "@payloadcms/next": "3.80.0",
@@ -40,12 +40,14 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@tailwindcss/postcss": "^4.1.12",
     "@types/papaparse": "^5.5.1",
+    "bullmq": "^5.71.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cross-env": "^7.0.3",
     "dotenv": "16.4.7",
     "elysia": "^1.4.16",
     "graphql": "^16.8.1",
+    "ioredis": "^5.4.2",
     "lucide-react": "^0.540.0",
     "next": "16.2.1",
     "next-themes": "^0.4.6",
@@ -102,7 +104,9 @@
       },
       "build": {
         "executor": "nx:run-commands",
-        "outputs": ["{workspaceRoot}/apps/portal/.next"],
+        "outputs": [
+          "{workspaceRoot}/apps/portal/.next"
+        ],
         "options": {
           "command": "node_modules/.bin/cross-env NODE_OPTIONS=\"--no-deprecation --max-old-space-size=8000\" node_modules/.bin/next build",
           "cwd": "apps/portal"
@@ -111,10 +115,15 @@
       "lint": {
         "executor": "@nx/eslint:lint",
         "options": {
-          "lintFilePatterns": ["apps/portal/**/*.{ts,tsx}"]
+          "lintFilePatterns": [
+            "apps/portal/**/*.{ts,tsx}"
+          ]
         }
       }
     },
-    "tags": ["type:app", "scope:portal"]
+    "tags": [
+      "type:app",
+      "scope:portal"
+    ]
   }
 }
