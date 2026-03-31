@@ -54,7 +54,15 @@ After the services are created, set env vars.
 
 ## 3) Build + Start Commands (Railway UI)
 
-Because this is a monorepo, set build/start per service in the Railway UI:
+Because this is a monorepo, set build/start per service in the Railway UI.
+You can also copy the provided templates:
+
+- `railway/railway.portal.toml`
+- `railway/railway.case-api.toml`
+- `railway/railway.procedures-api.toml`
+- `railway/railway.wbb-service.toml`
+
+Rename the one you need to `railway.toml` in the repo root before deploying that service.
 
 ### portal
 

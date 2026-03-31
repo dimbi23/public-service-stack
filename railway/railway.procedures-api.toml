@@ -1,0 +1,6 @@
+[build]
+command = "pnpm install --frozen-lockfile && pnpm exec nx build @org/procedures-api"
+
+[deploy]
+startCommand = "pnpm exec nx run @org/procedures-api:serve:production"
+restartPolicyType = "ON_FAILURE"

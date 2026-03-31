@@ -1,0 +1,6 @@
+[build]
+command = "pnpm install --frozen-lockfile && pnpm exec nx build @org/wbb-service"
+
+[deploy]
+startCommand = "pnpm exec nx run @org/wbb-service:serve:production"
+restartPolicyType = "ON_FAILURE"
